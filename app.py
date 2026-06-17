@@ -4,7 +4,10 @@ import numpy as np
 
 # --- Data & Logic Engine ---
 def load_and_clean_data(file_path):
-    df = pd.read_csv(file_path, header=None)
+    # CSV အစား Excel ကို ဖတ်ရန် ပြင်ဆင်ထားခြင်း
+    df = pd.read_excel(file_path, header=None, engine='openpyxl')
+    
+    # ပထမဆုံး Row (Header) ကို ဖယ်ထုတ်ပြီး Data သီးသန့်ယူခြင်း
     df = df.iloc[1:].reset_index(drop=True)
     return df
 
@@ -48,6 +51,10 @@ def get_4digit_group(df, head_cols, start_r, start_y_idx, r_step, y_step):
         if val.lower() == 'x' or pd.isna(df.iloc[curr_r, col_index]) or val == '':
             return None
             
+        # .0 (decimal) ပါလာပါက ဖယ်ရှားရန် (ဥပမာ 8.0 ကို 8 အဖြစ်ပြောင်းရန်)
+        if val.endswith('.0'):
+            val = val[:-2]
+            
         group.append(val)
         
     return {"digits": tuple(group), "path": path_info}
@@ -58,8 +65,8 @@ st.title("🎯 The Golden Cross 3D - Pattern Matrix Extractor")
 
 st.markdown("### ဇယားအတွင်းမှ လမ်းကြောင်းများအားလုံးကို ရှာဖွေခြင်း")
 
-# CSV File ကို Upload လုပ်ရန်
-uploaded_file = st.file_uploader("Bro ရဲ့ CSV ဒေတာဖိုင်ကို ထည့်ပါ", type=["csv"])
+# Excel (xlsx) File ကိုသာ Upload လုပ်ခွင့်ပြုရန် ပြင်ဆင်ထားသည်
+uploaded_file = st.file_uploader("Bro ရဲ့ Excel (.xlsx) ဒေတာဖိုင်ကို ထည့်ပါ", type=["xlsx"])
 
 if uploaded_file is not None:
     with st.spinner('Data များကို တွက်ချက်နေပါသည်... အနည်းငယ် စောင့်ပါ။'):
@@ -69,11 +76,9 @@ if uploaded_file is not None:
         
         st.success(f"✅ အောင်မြင်ပါသည်။ စုစုပေါင်း ရှာဖွေတွေ့ရှိသည့် Pattern Group အရေအတွက်: **{len(raw_groups):,}** ခု")
         
-        # နမူနာ Group များကို ပြသခြင်း
         st.subheader("နမူနာ Pattern Group များ (ပထမဆုံး အခု ၅၀)")
         
-        # DataFrame အဖြစ်ပြောင်း၍ ဇယားဖြင့် ပြသခြင်း
         display_data = [{"Digits": str(g["digits"]), "Path Info": g["path"]} for g in raw_groups[:50]]
         st.dataframe(pd.DataFrame(display_data), use_container_width=True)
 else:
-    st.info("ကျေးဇူးပြု၍ `2025_3D.xlsx - Calendar.csv` ဖိုင်ကို Upload တင်ပေးပါ။")
+    st.info("ကျေးဇူးပြု၍ `2025_3D.xlsx` ဖိုင်ကို Upload တင်ပေးပါ။")
