@@ -20,7 +20,7 @@ def build_super_groups_fast(df):
     super_groups = {"Head": {}, "Mid": {}, "Tail": {}}
     
     max_rows = len(df)
-    max_y = len(head_cols) - 1 
+    max_y = len(head_cols) - 1 # 2026 ဖယ်ထားမည်
     
     for pos_name, cols in positions:
         history_counts = {}
@@ -54,7 +54,7 @@ def build_super_groups_fast(df):
                 
     return super_groups, head_cols, mid_cols, tail_cols
 
-# --- 3. Strict Timing & Sequence Alignment Evaluator ---
+# --- 3. Stable Target Evaluator Engine (100% Result ထွက်မည့် မူရင်းဗားရှင်း) ---
 def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_excel_row):
     target_r = target_excel_row - 2 
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
@@ -86,9 +86,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
                 if valid:
                     prefixes.append({
                         "prefix": tuple(digits), 
-                        "path": f"{' -> '.join(path_str)} -> [TARGET]",
-                        "r_step": r_step,
-                        "y_step": y_step
+                        "path": f"{' -> '.join(path_str)} -> [TARGET]"
                     })
         
         pos_results = []
@@ -98,48 +96,20 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
             for pref in prefixes:
                 test_group = pref["prefix"] + (guess_str,)
                 if test_group in super_groups[pos_name]:
-                    
-                    # 🔥 ပြင်ဆင်ချက်: Target ရဲ့ ခြေလှမ်း (Timing) နှင့် ဂဏန်းအစီအစဉ် (Sequence) ကွက်တိတူသော History များကိုသာ ဇကာတင်စစ်ထုတ်ခြင်း
-                    strict_aligned_hist = []
-                    for hp in super_groups[pos_name][test_group]:
-                        p_parts = hp.split("->")
-                        if len(p_parts) == 4:
-                            # တစ်ဆင့်ချင်းစီ၏ ခြေလှမ်းကို တိုက်စစ်ခြင်း
-                            r0 = int(p_parts[0].split("_Y")[0][1:]) - 2
-                            y0 = int(p_parts[0].split("_Y")[1])
-                            r1 = int(p_parts[1].split("_Y")[0][1:]) - 2
-                            y1 = int(p_parts[1].split("_Y")[1])
-                            
-                            # ခြေလှမ်း (Steps) လက္ခဏာရော တန်ဖိုးပါ ကွက်တိ ကိုက်ရမည်
-                            if (r1 - r0 == pref["r_step"]) and (y1 - y0 == pref["y_step"]):
-                                # ဂဏန်းအစီအစဉ် ကွက်တိ ကိုက်/မကိုက် ထပ်မံစစ်ဆေးခြင်း
-                                h_digits = []
-                                for pt in p_parts:
-                                    hr = int(pt.split("_Y")[0][1:]) - 2
-                                    hy = int(pt.split("_Y")[1])
-                                    h_val = str(df.iloc[hr, cols[hy]]).strip().replace('.0','')
-                                    h_digits.append(h_val)
-                                
-                                if tuple(h_digits) == test_group:
-                                    strict_aligned_hist.append(hp)
-                    
-                    # တိုင်မင်ကိုက် သက်သေပြချက် အနည်းဆုံး ၃ ခုရှိမှသာ အတည်ပြုမည်
-                    if len(strict_aligned_hist) >= 3:
-                        matches.append({
-                            "group_digits": test_group,
-                            "target_path": pref["path"],
-                            "history_paths": strict_aligned_hist[:3]
-                        })
-                        
+                    matches.append({
+                        "group_digits": test_group,
+                        "target_path": pref["path"],
+                        "history_paths": super_groups[pos_name][test_group][:3]
+                    })
             if len(matches) >= 3:
                 pos_results.append({"digit": guess_str, "score": len(matches), "evidence": matches})
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 4. Premium Image Clean Engine (High-Contrast Watermarks) ---
+# --- 4. High-Contrast Watermark & Smart Grid Image Engine ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
-    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
+    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] # စိမ်း၊ နီ၊ ပြာ၊ လိမ္မော်
     cell_map, all_r, all_y = {}, [], []
     
     def add_to_map(path, col_idx):
@@ -165,11 +135,11 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     fig.subplots_adjust(left=0.3, right=0.7, top=0.7, bottom=0.3) 
     ax.axis('off')
     
-    # 🔒 HIGH-CONTRAST FULL-GRID WATERMARKS (အရောင်ပိုတင်ပြီး ၅ ကြောင်း ဖြန့်ချခြင်း)
+    # 🔒 HIGH-CONTRAST FULL-GRID WATERMARKS (၅ ကြောင်း ဖြန့်ချခြင်း)
     watermark_positions = [0.2, 0.35, 0.5, 0.65, 0.8]
     for wp in watermark_positions:
         fig.text(0.5, wp, 'GOLDEN CROSS 3D', fontsize=38, color='#111111',
-                 ha='center', va='center', alpha=0.35, rotation=35, zorder=0) # Alpha ကို 0.12 မှ 0.35 သို့ တင်လိုက်သည်
+                 ha='center', va='center', alpha=0.32, rotation=35, zorder=0)
     
     # 🌟 FIXED PREMIUM TITLE (ဇယားထိပ်ဆုံး ဗဟိုတွင် ကွက်တိပြသခြင်း)
     draw_number = target_excel_row - 13
@@ -207,14 +177,12 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 5. @st.fragment Lazy Image UI Module (No Preview + Smart Naming) ---
+# --- 5. @st.fragment Lazy Image UI Module (Direct Download) ---
 @st.fragment
 def render_group_image_ui(df, target_row, current_cols, key, item_digit, idx, grp):
-    # ဖိုင်အမည်များကို ဖုန်းထဲတွင် မရောထွေးစေရန် စနစ်တကျ ပြင်ဆင်ခြင်း
     draw_number = target_row - 13
     file_naming = f"{draw_number}-2026_{key}_Digit_{item_digit}_Group_{idx+1}.jpg"
     
-    # ဖြေရှင်းချက်: Preview (st.image) ကို ဖြုတ်ပစ်ပြီး တိုက်ရိုက် Download ခလုတ်တစ်ခုတည်းသာ ထားရှိခြင်း
     st.download_button(
         label=f"📥 အုပ်စု {idx+1} ပုံထုတ်မည် (Download)",
         data=draw_matrix_path_clean(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths'], item_digit, key),
@@ -226,7 +194,7 @@ def render_group_image_ui(df, target_row, current_cols, key, item_digit, idx, gr
 
 # --- 6. Streamlit Main UI ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D")
-st.title("🎯 Golden Cross 3D - Ultimate Premium Engine v4.2")
+st.title("🎯 Golden Cross 3D - Ultimate Premium Engine v4.3")
 
 file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"])
 
