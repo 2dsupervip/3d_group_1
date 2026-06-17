@@ -9,7 +9,7 @@ def load_data(file_path):
     df = pd.read_excel(file_path, header=None, engine='openpyxl')
     return df.iloc[1:].reset_index(drop=True)
 
-# --- 2. High-Speed Indexing Core Engine ---
+# --- 2. History Core Engine ---
 @st.cache_data
 def build_super_groups_fast(df):
     head_cols = [c for c in range(1, len(df.columns)) if (c - 1) % 3 == 0]
@@ -20,7 +20,7 @@ def build_super_groups_fast(df):
     super_groups = {"Head": {}, "Mid": {}, "Tail": {}}
     
     max_rows = len(df)
-    max_y = len(head_cols) - 1 
+    max_y = len(head_cols) - 1 # 2026 ဖယ်ထားမည်
     
     for pos_name, cols in positions:
         history_counts = {}
@@ -48,11 +48,12 @@ def build_super_groups_fast(df):
                             history_counts[dtup].add("->".join(path_str))
                             
         for dtup, paths in history_counts.items():
-            if len(paths) >= 3: super_groups[pos_name][dtup] = list(paths)
+            if len(paths) >= 3: 
+                super_groups[pos_name][dtup] = list(paths)
                 
     return super_groups, head_cols, mid_cols, tail_cols
 
-# --- 3. Target Alignment Evaluator (တိုင်မင် အတိအကျကိုက်သော လမ်းကြောင်းများသာ စစ်ထုတ်ခြင်း) ---
+# --- 3. Fixed Target Evaluator Engine ---
 def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_excel_row):
     target_r = target_excel_row - 2 
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
@@ -83,9 +84,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
                 if valid:
                     prefixes.append({
                         "prefix": tuple(digits), 
-                        "path": f"{' -> '.join(path_str)} -> [TARGET]",
-                        "r_step": r_step,
-                        "y_step": y_step
+                        "path": f"{' -> '.join(path_str)} -> [TARGET]"
                     })
         
         pos_results = []
@@ -94,33 +93,22 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
             matches = []
             for pref in prefixes:
                 test_group = pref["prefix"] + (guess_str,)
+                # ပြင်ဆင်ချက်: အမှားကင်းစင်သော ဒေတာစစ်ဆေးမှုအဖြစ် မူရင်းလော့ဂျစ်သို့ ပြန်လည်ပြောင်းလဲထားပါသည်
                 if test_group in super_groups[pos_name]:
-                    # တိုင်မင် (Step Alignment) တိုက်စစ်ခြင်း - လမ်းကြောင်း ၄ ခုစလုံး တူညီသော ခြေလှမ်းရှိရမည်
-                    filtered_hist = []
-                    for hp in super_groups[pos_name][test_group]:
-                        p_parts = hp.split("->")
-                        if len(p_parts) >= 2:
-                            r1, y1 = int(p_parts[0].split("_Y")[0][1:])-2, int(p_parts[0].split("_Y")[1])
-                            r2, y2 = int(p_parts[1].split("_Y")[0][1:])-2, int(p_parts[1].split("_Y")[1])
-                            if (r2 - r1 == pref["r_step"]) and (y2 - y1 == pref["y_step"]):
-                                filtered_hist.append(hp)
-                    
-                    if len(filtered_hist) >= 3 or (len(filtered_hist) > 0 and len(matches) >= 2):
-                        hist_to_use = filtered_hist if len(filtered_hist) >= 3 else super_groups[pos_name][test_group]
-                        matches.append({
-                            "group_digits": test_group,
-                            "target_path": pref["path"],
-                            "history_paths": hist_to_use[:3]
-                        })
+                    matches.append({
+                        "group_digits": test_group,
+                        "target_path": pref["path"],
+                        "history_paths": super_groups[pos_name][test_group][:3]
+                    })
             if len(matches) >= 3:
                 pos_results.append({"digit": guess_str, "score": len(matches), "evidence": matches})
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 4. Premium Image Engine (Watermark + Bold Font + Auto-Fill + Margins) ---
+# --- 4. Premium Image Engine ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit):
     plt.clf() 
-    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] # စိမ်း၊ နီ၊ ပြာ၊ လိမ္မော်
+    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
     cell_map, all_r, all_y = {}, [], []
     
     def add_to_map(path, col_idx):
@@ -135,23 +123,22 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     for i, hp in enumerate(hist_paths): add_to_map(hp, (i % 3) + 1)
     
     target_r, target_y = target_excel_row - 2, len(pos_cols) - 1
-    cell_map[(target_r, target_y)] = colors[0] # ယခုအကြိမ်ကို အစိမ်းရောင်အသေခြယ်မည်
+    cell_map[(target_r, target_y)] = colors[0]
     all_r.append(target_r); all_y.append(target_y)
 
     active_years = sorted(list(set(all_y)))
     min_r, max_r = max(0, min(all_r) - 2), min(len(df), max(all_r) + 3)
     plot_rows, plot_cols = max_r - min_r, len(active_years)
 
-    # ပတ်လည် Margin ချန်ရန်အတွက် ရုပ်ထွက်ပြင်ဆင်ခြင်း
     fig, ax = plt.subplots(figsize=(max(plot_cols * 0.8, 5), max(plot_rows * 0.5, 4)))
-    fig.subplots_adjust(left=0.3, right=0.7, top=0.7, bottom=0.3) # 0.3 Margin ဘေးပတ်လည်ချန်ခြင်း
+    fig.subplots_adjust(left=0.3, right=0.7, top=0.7, bottom=0.3) 
     ax.axis('off')
     
-    # 🔒 ANTI-THEFT WATERMARK စနစ် (စာသားနောက်ခံကို ၄၅ ဒီဂရီစောင်း၍ ထည့်ခြင်း)
+    # Watermark
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D', fontsize=35, color='gray',
              ha='center', va='center', alpha=0.12, rotation=45, zorder=0)
     
-    # 🌟 PREMIUM DYNAMIC TITLE (အကြိမ်ရေ အလိုအလျောက်တွက်ချက်ခြင်း)
+    # Title
     draw_number = target_excel_row - 13
     ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026)", fontsize=14, pad=20, weight='bold', color='#1a1a1a')
 
@@ -160,13 +147,12 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
         row_text, row_colors = [], []
         for y_idx in active_years:
             if r == target_r and y_idx == target_y:
-                # 🎯 ယခုလက်ရှိအကြိမ် Green Color မှာ ဂဏန်းကို အလိုအလျောက် တစ်ခါတည်း ဖြည့်ပေးခြင်း
                 val = str(guess_digit)
             else:
                 val = str(df.iloc[r, pos_cols[y_idx]]).strip().replace('.0','')
                 if val.lower() in ['nan', 'x']: val = ''
             row_text.append(val)
-            row_colors.append(cell_map.get((r, y_idx), "#ffffff")) # မူရင်းဆဲလ်များကို အဖြူရောင်ပြောင်းလဲ၍ အရောင်လွတ်များ ရှင်းထုတ်ခြင်း
+            row_colors.append(cell_map.get((r, y_idx), "#ffffff"))
         table_data.append(row_text); table_colors.append(row_colors)
         
     table = ax.table(cellText=table_data, cellColours=table_colors, 
@@ -176,11 +162,8 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     table.scale(1, 1.6)
     table.set_fontsize(10)
     
-    # 🔥 FONT SIZE ကြီးခြင်းနှင့် Column အကျယ်ကို ဂဏန်း နှစ်လုံးစာ ကျဉ်းခြင်း စနစ်
     for (row, col), cell in table.get_celld().items():
-        if col >= 0: 
-            cell.set_width(0.07) # Column အကျယ်ကို ကျစ်ကျစ်လျစ်လျစ် ညှိခြင်း
-        # လမ်းကြောင်းရှိသော အရောင်ပါသည့် ဆဲလ်ကွက်များကို စစ်ထုတ်ပြီး စာလုံးအထူနှင့် Font ကြီးပေးခြင်း
+        if col >= 0: cell.set_width(0.07)
         if (row-1, col) in [(r - min_r, active_years.index(y)) for (r, y) in cell_map.keys()]:
             cell.get_text().set_fontsize(13)
             cell.get_text().set_weight('bold')
@@ -208,7 +191,7 @@ def render_group_image_ui(df, target_row, current_cols, key, item_digit, idx, gr
 
 # --- 6. Streamlit Main UI ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D")
-st.title("🎯 Golden Cross 3D - Premium Copy-Protection Engine v4.0")
+st.title("🎯 Golden Cross 3D - Premium Engine v4.1 (Bug Fixed)")
 
 file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"])
 
@@ -257,7 +240,5 @@ if file:
                                     st.markdown(f"**လမ်းကြောင်း {sub_idx+1}:** `{match['target_path']}`")
                                 
                                 current_cols = h_cols if key=="Head" else (m_cols if key=="Mid" else t_cols)
-                                
-                                # Fragment UI သို့ ဒေတာပို့လွှတ်ခြင်း
                                 render_group_image_ui(df, target_row, current_cols, key, item['digit'], idx, grp)
                                 st.markdown("---")
