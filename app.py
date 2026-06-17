@@ -86,9 +86,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
                 if valid:
                     prefixes.append({
                         "prefix": tuple(digits), 
-                        "path": f"{' -> '.join(path_str)} -> [TARGET]",
-                        "r_step": r_step,
-                        "y_step": y_step
+                        "path": f"{' -> '.join(path_str)} -> [TARGET]"
                     })
         
         pos_results = []
@@ -101,105 +99,82 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
                     matches.append({
                         "group_digits": test_group,
                         "target_path": pref["path"],
-                        "history_paths": super_groups[pos_name][test_group],
-                        "target_r_step": pref["r_step"],
-                        "target_y_step": pref["y_step"]
+                        "history_paths": super_groups[pos_name][test_group][:3]
                     })
             if len(matches) >= 3:
                 pos_results.append({"digit": guess_str, "score": len(matches), "evidence": matches})
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 4. Beautiful & Sharp Premium Image Engine ---
-def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, raw_hist_paths, target_r_step, target_y_step, guess_digit, position_title):
+# --- 4. Beautiful & Standard Grid Image Engine ---
+def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] # စိမ်း၊ နီ၊ ပြာ၊ လိမ္မော်
-    cell_map, all_r, all_y = {}, [], []
+    cell_map, all_r = {}, []
     
-    # ၁။ Target လမ်းကြောင်းကို အရင်မြေပုံသွင်းမည်
-    for p in target_path.split("->"):
-        p = p.strip().replace("[TARGET]", "").strip("-").strip()
-        if p.startswith("R") and "_Y" in p:
-            r, y = int(p.split("_Y")[0][1:]) - 2, int(p.split("_Y")[1])
-            cell_map[(r, y)] = colors[0]
-            all_r.append(r); all_y.append(y)
-            
-    # ၂။ History လမ်းကြောင်းများထဲမှ Target နှင့် တိုင်မင်ခြေလှမ်း (Steps) ကွက်တိကိုက်ညီသော ထိပ်တန်း ၃ ခုကိုသာ စစ်ထုတ်၍ အရောင်ခြယ်မည်
-    valid_hist_count = 0
-    for hp in raw_hist_paths:
-        if valid_hist_count >= 3: break
-        p_parts = hp.split("->")
-        if len(p_parts) == 4:
-            r0 = int(p_parts[0].split("_Y")[0][1:]) - 2
-            y0 = int(p_parts[0].split("_Y")[1])
-            r1 = int(p_parts[1].split("_Y")[0][1:]) - 2
-            y1 = int(p_parts[1].split("_Y")[1])
-            
-            # ခြေလှမ်း အကွာအဝေး ကိုက်ညီမှု ရှိ/မရှိ စစ်ဆေးခြင်း
-            if (r1 - r0 == target_r_step) and (y1 - y0 == target_y_step):
-                valid_hist_count += 1
-                col_idx = valid_hist_count # ၁၊ ၂၊ ၃ (နီ၊ ပြာ၊ လိမ္မော်)
-                for pt in p_parts:
-                    r, y = int(pt.split("_Y")[0][1:]) - 2, int(pt.split("_Y")[1])
-                    if (r, y) not in cell_map: 
-                        cell_map[(r, y)] = colors[col_idx % 4]
-                    all_r.append(r); all_y.append(y)
+    def add_to_map(path, col_idx):
+        for p in path.split("->"):
+            p = p.strip().replace("[TARGET]", "").strip("-").strip()
+            if p.startswith("R") and "_Y" in p:
+                r, y = int(p.split("_Y")[0][1:]) - 2, int(p.split("_Y")[1])
+                if (r, y) not in cell_map: cell_map[(r, y)] = colors[col_idx]
+                all_r.append(r)
 
-    # ၃။ ယခုလက်ရှိအကြိမ် Target နေရာကို အစိမ်းရောင် သတ်မှတ်ခြင်း
+    add_to_map(target_path, 0)
+    for i, hp in enumerate(hist_paths): add_to_map(hp, (i % 3) + 1)
+    
     target_r, target_y = target_excel_row - 2, len(pos_cols) - 1
     cell_map[(target_r, target_y)] = colors[0]
-    all_r.append(target_r); all_y.append(target_y)
+    all_r.append(target_r)
 
-    active_years = sorted(list(set(all_y)))
+    # ပြင်ဆင်ချက်- ကော်လံများကို မဖြတ်တော့ဘဲ အစမှအဆုံး (Year 00 to 26) ပြန်ပြောင်းလဲခြင်း
+    plot_cols = len(pos_cols)
     min_r, max_r = max(0, min(all_r) - 2), min(len(df), max(all_r) + 3)
-    plot_rows, plot_cols = max_r - min_r, len(active_years)
+    plot_rows = max_r - min_r
 
-    # ပုံထွက် မျက်နှာစာ အချိုးအစား ညှိနှိုင်းခြင်း
-    fig, ax = plt.subplots(figsize=(max(plot_cols * 0.85, 6), max(plot_rows * 0.48, 4.5)))
-    fig.subplots_adjust(left=0.15, right=0.85, top=0.8, bottom=0.2) 
+    fig, ax = plt.subplots(figsize=(plot_cols * 0.55, plot_rows * 0.45))
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.15) 
     ax.axis('off')
     
-    # 🔒 PREMIUM WATERMARK (မှုန်ပျပျ ပါးပါးကြည်ကြည်လေးဖြင့် အဆင့်မြင့်စွာ ၅ ကြောင်း ခင်းခြင်း)
-    watermark_positions = [0.22, 0.36, 0.50, 0.64, 0.78]
-    for wp in watermark_positions:
-        fig.text(0.5, wp, 'GOLDEN CROSS 3D', fontsize=36, color='#dcdcdc',
-                 ha='center', va='center', alpha=0.28, rotation=35, zorder=0)
+    # 🔒 ELEGANT SUBTLE WATERMARK (ဘယ်မှညာသို့ ဖြတ်သန်းသွားသော ပါးပါးကြည်ကြည် ဒီဇိုင်းဆန်း ၁ ကြောင်းတည်း)
+    fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=26, color='#b0b0b0',
+             ha='center', va='center', alpha=0.15, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 FIXED HIGH-TECH TITLE (ဇယားကွက်၏ ထိပ်ဆုံး အလယ်ဗဟိုတွင် တပ်ဆင်ခြင်း)
+    # 🌟 HEADLINE TITLE (ဇယားကွက်၏ ထိပ်ဆုံး အလယ်ဗဟိုတွင် စာသားအပြည့်အစုံ ကွက်တိတပ်ဆင်ခြင်း)
     draw_number = target_excel_row - 13
     ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
-                 fontsize=14, pad=25, weight='bold', color='#111111', ha='center')
+                 fontsize=14, pad=20, weight='bold', color='#111111', ha='center')
 
     table_data, table_colors = [], []
     for r in range(min_r, max_r):
         row_text, row_colors = [], []
-        for y_idx in active_years:
+        for y_idx in range(plot_cols):
             if r == target_r and y_idx == target_y:
                 val = str(guess_digit)
             else:
                 val = str(df.iloc[r, pos_cols[y_idx]]).strip().replace('.0','')
                 if val.lower() in ['nan', 'x']: val = ''
             row_text.append(val)
-            
-            # မူရင်း ဆဲလ်ကွက်များကို မျက်စိအေးစေသော မီးခိုးနုရောင် Soft Background ပေးခြင်း
-            row_colors.append(cell_map.get((r, y_idx), "#fcfcfc"))
+            # မူရင်းဆဲလ်များကို သပ်ရပ်သော မီးခိုးနုရောင် Soft Background ပေးခြင်း
+            row_colors.append(cell_map.get((r, y_idx), "#f8f9fa"))
         table_data.append(row_text); table_colors.append(row_colors)
         
+    col_labels = [f"{97 + y}" if (97 + y) < 100 else f"{y - 3:02d}" for y in range(plot_cols)]
+    row_labels = [f"R-{r+2}" for r in range(min_r, max_r)]
+    
     table = ax.table(cellText=table_data, cellColours=table_colors, 
-                     rowLabels=[f"R-{r+2}" for r in range(min_r, max_r)], 
-                     colLabels=[f"{97 + y}" if (97 + y) < 100 else f"{y - 3:02d}" for y in active_years], 
+                     rowLabels=row_labels, colLabels=col_labels, 
                      loc='center', cellLoc='center')
     table.scale(1, 1.6)
     table.set_fontsize(10)
     
-    # ဆဲလ်ကွက်များအတွင်း စာလုံးအကြီးအသေးနှင့် အကျယ်အဝန်းကို အချောသပ်ခြင်း
+    # လိုင်းများနှင့် စာလုံးအထူစနစ်ကို အချောသပ်ခြင်း
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
-            cell.set_width(0.075)
             cell.set_linewidth(0.5)
-            cell.set_edgecolor('#e0e0e0') # ဇယားလိုင်းများကို နုနုလေးပြောင်းခြင်း
-        if (row-1, col) in [(r - min_r, active_years.index(y)) for (r, y) in cell_map.keys()]:
-            cell.get_text().set_fontsize(13)
+            cell.set_edgecolor('#dcdcdc') 
+        if (row-1, col) in [(r - min_r, y) for (r, y) in cell_map.keys()]:
+            cell.get_text().set_fontsize(12)
             cell.get_text().set_weight('bold')
             
     buf = BytesIO()
@@ -213,13 +188,9 @@ def render_group_image_ui(df, target_row, current_cols, key, item_digit, idx, gr
     draw_number = target_row - 13
     file_naming = f"{draw_number}-2026_{key}_Digit_{item_digit}_Group_{idx+1}.jpg"
     
-    # Target ခြေလှမ်းများကို လှမ်းယူခြင်း
-    target_r_step = grp[0]['target_r_step']
-    target_y_step = grp[0]['target_y_step']
-    
     st.download_button(
         label=f"📥 အုပ်စု {idx+1} ပုံထုတ်မည် (Download)",
-        data=draw_matrix_path_clean(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths'], target_r_step, target_y_step, item_digit, key),
+        data=draw_matrix_path_clean(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths'], item_digit, key),
         file_name=file_naming,
         mime="image/jpeg",
         key=f"dl_confirm_{key}_{item_digit}_grp_{idx}",
@@ -228,7 +199,7 @@ def render_group_image_ui(df, target_row, current_cols, key, item_digit, idx, gr
 
 # --- 6. Streamlit Main UI ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D")
-st.title("🎯 Golden Cross 3D - Masterpiece Premium Engine v4.4")
+st.title("🎯 Golden Cross 3D - Ultimate Masterpiece Engine")
 
 file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"])
 
