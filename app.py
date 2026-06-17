@@ -1,0 +1,79 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+# --- Data & Logic Engine ---
+def load_and_clean_data(file_path):
+    df = pd.read_csv(file_path, header=None)
+    df = df.iloc[1:].reset_index(drop=True)
+    return df
+
+def extract_pattern_groups(df):
+    all_extracted_groups = []
+    max_rows = len(df)
+    
+    # ထိပ်ဂဏန်း Column များကို ရှာဖွေခြင်း (1, 4, 7, 10, ...)
+    head_cols = [col for col in range(1, len(df.columns)) if (col - 1) % 4 == 0]
+    total_years = len(head_cols)
+    
+    for y_idx in range(total_years - 1, -1, -1):
+        for r in range(max_rows):
+            for r_step in range(1, 5):
+                group_data = get_4digit_group(df, head_cols, r, y_idx, r_step=r_step, y_step=0)
+                if group_data:
+                    all_extracted_groups.append(group_data)
+                    
+            for y_step in range(1, 5):
+                for r_step in range(0, 5):
+                    group_data = get_4digit_group(df, head_cols, r, y_idx, r_step=r_step, y_step=y_step)
+                    if group_data:
+                        all_extracted_groups.append(group_data)
+                        
+    return all_extracted_groups
+
+def get_4digit_group(df, head_cols, start_r, start_y_idx, r_step, y_step):
+    group = []
+    path_info = f"Row {start_r + 2}, Year {df.iloc[0, head_cols[start_y_idx]] if start_r==0 else '...'} | r_step: {r_step}, y_step: {y_step}"
+    
+    for i in range(4):
+        curr_r = start_r + (i * r_step)
+        curr_y_idx = start_y_idx + (i * y_step)
+        
+        if curr_r >= len(df) or curr_y_idx >= len(head_cols):
+            return None
+            
+        col_index = head_cols[curr_y_idx]
+        val = str(df.iloc[curr_r, col_index]).strip()
+        
+        if val.lower() == 'x' or pd.isna(df.iloc[curr_r, col_index]) or val == '':
+            return None
+            
+        group.append(val)
+        
+    return {"digits": tuple(group), "path": path_info}
+
+# --- Streamlit UI ---
+st.set_page_config(page_title="The Golden Cross 3D - Engine Test", layout="wide")
+st.title("🎯 The Golden Cross 3D - Pattern Matrix Extractor")
+
+st.markdown("### ဇယားအတွင်းမှ လမ်းကြောင်းများအားလုံးကို ရှာဖွေခြင်း")
+
+# CSV File ကို Upload လုပ်ရန်
+uploaded_file = st.file_uploader("Bro ရဲ့ CSV ဒေတာဖိုင်ကို ထည့်ပါ", type=["csv"])
+
+if uploaded_file is not None:
+    with st.spinner('Data များကို တွက်ချက်နေပါသည်... အနည်းငယ် စောင့်ပါ။'):
+        # Data ဖတ်ခြင်းနှင့် တွက်ချက်ခြင်း
+        df = load_and_clean_data(uploaded_file)
+        raw_groups = extract_pattern_groups(df)
+        
+        st.success(f"✅ အောင်မြင်ပါသည်။ စုစုပေါင်း ရှာဖွေတွေ့ရှိသည့် Pattern Group အရေအတွက်: **{len(raw_groups):,}** ခု")
+        
+        # နမူနာ Group များကို ပြသခြင်း
+        st.subheader("နမူနာ Pattern Group များ (ပထမဆုံး အခု ၅၀)")
+        
+        # DataFrame အဖြစ်ပြောင်း၍ ဇယားဖြင့် ပြသခြင်း
+        display_data = [{"Digits": str(g["digits"]), "Path Info": g["path"]} for g in raw_groups[:50]]
+        st.dataframe(pd.DataFrame(display_data), use_container_width=True)
+else:
+    st.info("ကျေးဇူးပြု၍ `2025_3D.xlsx - Calendar.csv` ဖိုင်ကို Upload တင်ပေးပါ။")
