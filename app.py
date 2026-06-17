@@ -190,6 +190,7 @@ if file:
 
     if st.button("🚀 Master Filter ဖြင့် စက္ကန့်ပိုင်းအတွင်း တိုက်စစ်မည်", use_container_width=True):
         with st.spinner("Target-Driven Algorithm ဖြင့် အမြန်နှုန်းမြှင့် တွက်ချက်နေပါသည်..."):
+            # ပြင်ဆင်ချက်: evaluate_target အစား အသစ်ပြောင်းထားသော analyze_fast_mode ကို အမှန်အတိုင်း ခေါ်ယူလိုက်ပါပြီ
             results, h_cols, m_cols, t_cols = analyze_fast_mode(df, target_row)
             st.session_state.fast_results = results
             st.session_state.h_cols = h_cols
