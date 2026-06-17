@@ -122,7 +122,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
 
 # --- 4. High-Quality Image Clean Engine ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths):
-    plt.clf() # Canvas အဟောင်းကို ရှင်းထုတ်ခြင်း
+    plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"]
     cell_map, all_r, all_y = {}, [], []
     
@@ -192,7 +192,6 @@ if file:
     df = load_data(file)
     target_row = st.number_input("Excel Row Number", value=25, min_value=2)
     
-    # Session State တည်ဆောက်ခြင်း
     if "results" not in st.session_state:
         st.session_state.results = None
         st.session_state.h_cols = None
@@ -200,20 +199,17 @@ if file:
         st.session_state.t_cols = None
 
     if st.button("🚀 Master Filter ဖြင့် တိုက်စစ်မည်", use_container_width=True):
-        with st.spinner("History Group များကို Engine ထဲတွင် အမြန်အညွှန်းခွဲနေပါသည်..."):
+        with st.spinner("History Data များကို တွက်ချက်နေပါသည်..."):
             super_groups, head_cols, mid_cols, tail_cols = build_super_groups_fast(df)
-            
-        with st.spinner("Target နေရာနှင့် အချိန်ကို တိုက်ဆိုင်စစ်ဆေးနေပါသည်..."):
+            # အတိအကျ ပြန်လည်သတ်မှတ်ထားသော function ကို တိုက်ရိုက်ခေါ်သုံးခြင်း
             results = evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_row)
             
-            # State ထဲသို့ အသေထည့်သိမ်းခြင်း
             st.session_state.results = results
             st.session_state.h_cols = head_cols
             st.session_state.m_cols = mid_cols
             st.session_state.t_cols = tail_cols
             st.success("✅ တွက်ချက်မှု အောင်မြင်စွာ ပြီးမြောက်ပါပြီ။")
 
-    # ရလဒ်များ ထုတ်ပြခြင်း အပိုင်း
     if st.session_state.results is not None:
         results = st.session_state.results
         h_cols = st.session_state.h_cols
@@ -234,7 +230,6 @@ if file:
                 else:
                     for item in results[key]:
                         with st.expander(f"ဂဏန်း [ {item['digit']} ] - လမ်းကြောင်း {item['score']} ခု"):
-                            # Option A: ၃ ခု ၁ စုစီ ခွဲထုတ်ခြင်း
                             groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
                             for idx, grp in enumerate(groups):
                                 st.markdown(f"### 📦 အုပ်စု {idx+1}")
@@ -243,7 +238,6 @@ if file:
                                 
                                 current_cols = h_cols if key=="Head" else (m_cols if key=="Mid" else t_cols)
                                 
-                                # ဒေါင်းလုဒ်ဆွဲသည့် အချိန်မှသာ သက်ဆိုင်ရာ အုပ်စုအတွက် ပုံထုတ်ပေးမည်
                                 st.download_button(
                                     label=f"📸 အုပ်စု {idx+1} ပုံထုတ်မည်",
                                     data=draw_matrix_path_clean(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths']),
