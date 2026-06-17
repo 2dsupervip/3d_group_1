@@ -189,49 +189,63 @@ if file:
     with col1:
         st.subheader("ယခုအကြိမ် နေရာ (Target)")
         target_row = st.number_input("Excel Row Number (ဥပမာ ၁၂ ကြိမ်မြောက်အတွက် 25)", value=25, min_value=2)
-        run_btn = st.button("🚀 Master Filter ဖြင့် တိုက်စစ်မည်", use_container_width=True)
         
-    if run_btn:
-        with st.spinner("History Data များကို Super Group အဖြစ် သန့်စင်နေပါသည်..."):
+    # Session State သုံး၍ Button နှိပ်ပါက Data ပျောက်မသွားအောင် ထိန်းထားခြင်း
+    if "calculated_results" not in st.session_state:
+        st.session_state.calculated_results = None
+        st.session_state.super_g = None
+        st.session_state.h_cols = None
+        st.session_state.m_cols = None
+        st.session_state.t_cols = None
+
+    if st.button("🚀 Master Filter ဖြင့် တိုက်စစ်မည်", use_container_width=True):
+        with st.spinner("Data များကို တွက်ချက်နေပါသည်..."):
             super_groups, head_cols, mid_cols, tail_cols = build_super_groups(df)
-            st.success(f"✅ Data သန့်စင်ခြင်း အောင်မြင်ပါသည်။ တွေ့ရှိသော Super Group များ: Head ({len(super_groups['Head']):,}), Mid ({len(super_groups['Mid']):,}), Tail ({len(super_groups['Tail']):,})")
-            
-        with st.spinner("Target ဖြင့် တိုက်စစ်နေပါသည်..."):
             results = evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_row)
             
-            st.markdown("---")
-            st.header("🏆 Master Filter Analysis Results")
-            
-            res_col1, res_col2, res_col3 = st.columns(3)
-            positions_ui = [("Head (ထိပ်)", "Head", res_col1), ("Mid (အလယ်)", "Mid", res_col2), ("Tail (ပိတ်)", "Tail", res_col3)]
-            
-            for title, key, col in positions_ui:
-                with col:
-                    st.subheader(title)
-                    if not results[key]:
-                        st.info("ဤအကြိမ်အတွက် ခိုင်မာသော ထောက်ခံမှု မတွေ့ပါ။")
-                    else:
-                        for item in results[key]:
-                            with st.expander(f"ဂဏန်း [ {item['digit']} ] - ထောက်ခံသည့် လမ်းကြောင်း {item['score']} ခု"):
-                                groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
+            st.session_state.calculated_results = results
+            st.session_state.super_g = super_groups
+            st.session_state.h_cols = head_cols
+            st.session_state.m_cols = mid_cols
+            st.session_state.t_cols = tail_cols
+
+    if st.session_state.calculated_results is not None:
+        results = st.session_state.calculated_results
+        h_cols = st.session_state.h_cols
+        m_cols = st.session_state.m_cols
+        t_cols = st.session_state.t_cols
+        
+        st.markdown("---")
+        st.header("🏆 Master Filter Analysis Results")
+        
+        res_col1, res_col2, res_col3 = st.columns(3)
+        positions_ui = [("Head (ထိပ်)", "Head", res_col1), ("Mid (အလယ်)", "Mid", res_col2), ("Tail (ပိတ်)", "Tail", res_col3)]
+        
+        for title, key, col in positions_ui:
+            with col:
+                st.subheader(title)
+                if not results[key]:
+                    st.info("ဤအကြိမ်အတွက် ခိုင်မာသော ထောက်ခံမှု မတွေ့ပါ။")
+                else:
+                    for item in results[key]:
+                        with st.expander(f"ဂဏန်း [ {item['digit']} ] - ထောက်ခံသည့် လမ်းကြောင်း {item['score']} ခု"):
+                            groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
+                            
+                            for idx, grp in enumerate(groups):
+                                st.markdown(f"### 📦 အုပ်စု {idx+1}")
+                                for sub_idx, match in enumerate(grp):
+                                    st.markdown(f"**လမ်းကြောင်း {sub_idx+1}:** `{match['target_path']}`")
                                 
-                                for idx, grp in enumerate(groups):
-                                    st.markdown(f"### 📦 အုပ်စု {idx+1}")
-                                    for sub_idx, match in enumerate(grp):
-                                        st.markdown(f"**လမ်းကြောင်း {sub_idx+1}:** `{match['target_path']}`")
-                                    
-                                    # On-Demand: Button နှိပ်မှ ပုံဆွဲပြီး ဒေါင်းလုဒ်လုပ်ခိုင်းမည်
-                                    button_key = f"btn_{key}_{item['digit']}_group_{idx}"
-                                    if st.button(f"🎨 အုပ်စု {idx+1} ကို ပုံထုတ်ရန် ready လုပ်မည်", key=button_key, use_container_width=True):
-                                        current_cols = head_cols if key=="Head" else (mid_cols if key=="Mid" else tail_cols)
-                                        img = draw_matrix_path(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths'])
-                                        
-                                        st.download_button(
-                                            label=f"📥 အုပ်စု {idx+1} Image ဒေါင်းလုဒ်ဆွဲရန်",
-                                            data=img,
-                                            file_name=f"GC_3D_{key}_Digit_{item['digit']}_Group_{idx+1}.jpg",
-                                            mime="image/jpeg",
-                                            key=f"dl_{button_key}",
-                                            use_container_width=True
-                                        )
-                                    st.markdown("---")
+                                # ဖြေရှင်းချက်: st.download_button ထဲတွင် ပုံဆွဲသည့် function ကို တစ်ခါတည်းထည့်ခြင်းဖြင့် အစပြန်မရောက်တော့ပါ
+                                current_cols = h_cols if key=="Head" else (m_cols if key=="Mid" else t_cols)
+                                
+                                # download နှိပ်မှ နောက်ကွယ်ကနေ runtime ထဲ ပုံဝင်ဆွဲပေးမည် (On-Demand + Safe Mode)
+                                st.download_button(
+                                    label=f"📸 အုပ်စု {idx+1} ပုံထုတ်မည်",
+                                    data=draw_matrix_path(df, target_row, current_cols, grp[0]['target_path'], grp[0]['history_paths']),
+                                    file_name=f"GC_3D_{key}_Digit_{item['digit']}_Group_{idx+1}.jpg",
+                                    mime="image/jpeg",
+                                    key=f"dl_{key}_{item['digit']}_grp_{idx}",
+                                    use_container_width=True
+                                )
+                                st.markdown("---")
