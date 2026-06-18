@@ -34,7 +34,7 @@ st.markdown("""
     }
     div.stButton > button:hover { background-color: #f3cd44 !important; transform: scale(1.01); }
     </style>
-""", unsafe_unsafe_with_row_id=True, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --- 2. Data Loading Engine ---
 @st.cache_data
@@ -169,7 +169,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
 
     # 📐 Layout ကို သုံးဖက်ပတ်လည် .3 Margin အတိအကျချန်ခြင်း
     fig, ax = plt.subplots(figsize=(max(plot_cols * 0.42, 5), max(plot_rows * 0.42, 4)))
-    fig.subplots_adjust(left=0.12, right=0.88, top=0.90, bottom=0.12) # Top ကို ကပ်ပေးထားသည်
+    fig.subplots_adjust(left=0.12, right=0.88, top=0.90, bottom=0.12) 
     ax.axis('off')
     
     # 🔒 PREMIUM BACKGROUND WATERMARK
@@ -231,7 +231,7 @@ with st.sidebar:
     file = st.file_uploader("Upload Excel Data File (.xlsx)", type=["xlsx"])
     st.markdown("---")
     target_row = st.number_input("Excel Row Target Number", value=25, min_value=2)
-    st.markdown("<br><p style='color:#888;'>v6.0 Powered by Adaptive Engine</p>", unsafe_allow_html=True)
+    st.markdown("<br><p style='color:#888;'>v6.1 Powered by Adaptive Engine</p>", unsafe_allow_html=True)
 
 # --- 8. Main Application Interface ---
 if file:
@@ -303,12 +303,47 @@ if file:
         else:
             head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
             
-        # Paste Input Box with Key-binding state management
+        # Paste Input Box
         paste_input = st.text_area("📋 Tab 1 မှ မိတ္တူကူးလာသော အုပ်စုစာသားကို Paste ချပါ:", 
                                    value=st.session_state.paste_box_value, height=100, key="paste_box_area")
         
         if paste_input.strip():
-            # 🛠 [လော့ဂျစ်အသစ်] "Print (ပုံထုတ်မည်)" ခလုတ်စနစ် အပြည့်အစုံ
             if st.button("📸 Print (ပုံထုတ်မည်)", use_container_width=True):
                 try:
+                    # ဖုန်းမှာ ကူးရင် ပါလာတတ်တဲ့ "> " သင်္ကေတ အပိုများကို သန့်စင်ခြင်း
                     cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
+                    cleaned_input = cleaned_input.replace('\n', '').strip()
+                    
+                    pkg = json.loads(cleaned_input)
+                    t_row = pkg["target_row"]
+                    pos_title = pkg["position_title"]
+                    g_digit = pkg["guess_digit"]
+                    g_idx = pkg["group_idx"]
+                    t_path = pkg["target_path"]
+                    h_paths = pkg["history_paths"]
+                    
+                    current_cols = head_cols if pos_title=="Head" else (mid_cols if pos_title=="Mid" else tail_cols)
+                    draw_num = t_row - 13
+                    file_naming = f"{draw_num}-2026_{pos_title}_Digit_{g_digit}_Group_{g_idx}.jpg"
+                    
+                    # 🚀 RAM Memory ထဲတွင် ပုံထုတ်ယူခြင်း
+                    img_data = draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title)
+                    
+                    st.success(f"🎯 ပုံဖန်တီးမှု အောင်မြင်သည်- {pos_title} Digit {g_digit} (အုပ်စု {g_idx})")
+                    
+                    st.download_button(
+                        label="📥 ဖုန်း/ကွန်ပျူတာထဲသို့ တိုက်ရိုက်သိမ်းဆည်းမည် (Download)",
+                        data=img_data,
+                        file_name=file_naming,
+                        mime="image/jpeg",
+                        use_container_width=True,
+                        key="direct_download_trigger"
+                    )
+                    
+                    # Box ကို Auto-Clear လုပ်ရန် State ရှင်းလင်းခြင်း
+                    st.session_state.paste_box_value = ""
+                    
+                except Exception as e:
+                    st.error("❌ စာသားပုံစံ မမှန်ကန်ပါ။ Tab 1 မှ ကုဒ်တစ်ခုလုံးကို အစအဆုံး ပြန်ကူးပေးပါ။")
+else:
+    st.info("💡 စတင်ရန်အတွက် ဘယ်ဘက် Sidebar Panel တွင် Excel (.xlsx) ဒေတာဖိုင်ကို အရင်ဆုံး တင်ပေးပါ Bro!")
