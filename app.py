@@ -1,124 +1,97 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from io import BytesIO
 import json
-import re
 import itertools
-import base64
 
-# --- 1. Streamlit Configuration & Dark Theme UI ---
-st.set_page_config(layout="wide", page_title="Golden Cross 3D Pro", page_icon="🎯")
+# --- 1. Streamlit Page Configuration & Theme ---
+st.set_page_config(layout="wide", page_title="Golden Cross 3D Core v10.0", page_icon="🎯")
 
 st.markdown("""
     <style>
-    /* Global Background and Text */
     .stApp { background-color: #0e1117; color: #ffffff; }
-    
-    /* Tab Styling */
-    button[data-baseweb="tab"] { color: #888888 !important; font-size: 16px !important; font-weight: bold !important; }
+    button[data-baseweb="tab"] { color: #888888 !important; font-size: 15px !important; font-weight: bold !important; }
     button[data-baseweb="tab"][aria-selected="true"] { color: #D4AF37 !important; border-bottom-color: #D4AF37 !important; }
-    
-    /* Metrics / Summary Cards Styling */
-    .metric-card {
-        background-color: #1f2937; border: 1px solid #374151; border-radius: 10px;
-        padding: 15px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        margin-bottom: 12px;
+    .report-card {
+        background-color: #1f2937; border: 1px solid #374151; border-radius: 8px;
+        padding: 15px; margin-bottom: 10px;
     }
-    .metric-title { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
-    .metric-value { color: #ffffff; font-size: 16px; font-weight: 500; letter-spacing: 2px; line-height: 1.8; }
-    
-    /* Button Styling */
-    div.stButton > button {
-        background-color: #D4AF37 !important; color: #0e1117 !important; 
-        font-weight: bold !important; font-size: 16px !important;
-        border-radius: 8px !important; transition: all 0.3s ease !important;
-        height: 48px !important;
-    }
-    div.stButton > button:hover { background-color: #f3cd44 !important; transform: scale(1.01); }
+    .win-text { color: #00ffcc; font-weight: bold; }
+    .lose-text { color: #ff3366; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 2. Data Loading Engine ---
 @st.cache_data
 def load_data(file_path):
+    # Header မပါဘဲ ဒေတာသက်သက်ကို ဆွဲဖတ်ခြင်း
     df = pd.read_excel(file_path, header=None, engine='openpyxl')
     return df.iloc[1:].reset_index(drop=True)
 
-# --- 3. History Core Engine with Neighborhood Block Filter ---
-@st.cache_data
-def build_super_groups_fast(df):
+# --- 3. Core Engine with Strict Layout Boundary & Deduplication ---
+def analyze_matrix_core(df, target_r):
     head_cols = [c for c in range(1, len(df.columns)) if (c - 1) % 3 == 0]
     mid_cols = [c + 1 for c in head_cols]
     tail_cols = [c + 2 for c in head_cols]
     
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
-    super_groups = {"Head": {}, "Mid": {}, "Tail": {}}
+    raw_matches = {"Head": {}, "Mid": {}, "Tail": {}}
+    
     max_rows = len(df)
-    max_y = len(head_cols) - 1 
+    max_y = len(head_cols) - 1
+    
+    # 🛠 [Strict Deduplication Registry] နေရာမတူဘဲ ဒေတာချင်းထပ်နေသည့် ကောင်များကို DNA စစ်ထုတ်ရန်
+    seen_signatures = set()
     
     for pos_name, cols in positions:
-        history_counts = {}
-        # ဒေတာ Block ကြီးတစ်ခုလုံး ပုံတူထပ်နေခြင်းကို စစ်ထုတ်ရန် Signature Registry
-        seen_neighborhood_blocks = {}
-        
         for y_idx in range(max_y):
             for r in range(max_rows):
+                # Target Row နှင့် ၎င်း၏အောက်ခြေဒေတာများကို သမိုင်းကြောင်းအဖြစ် လှမ်းမဖတ်ရန် (ခိုးကြည့်မှုပိတ်ဆို့ခြင်း)
+                if r >= target_r: continue 
+                
                 for y_step in range(5):
                     for r_step in range(-4, 5):
                         if y_step == 0 and r_step == 0: continue
                         
-                        digits, path_str, valid = [], [], True
-                        neighborhood_signature = [] # 🛠 ပတ်ဝန်းကျင် ဝဲ/ယာ ဒေတာစုစည်းမှု
+                        digits, path_coords, valid = [], [], True
+                        neighborhood_dna = []
                         
                         for i in range(4):
                             curr_r = r + i * r_step
                             curr_y = y_idx + i * y_step
-                            if curr_r < 0 or curr_r >= max_rows or curr_y < 0 or curr_y >= max_y:
-                                valid = False; break
                             
+                            if curr_r < 0 or curr_r >= target_r or curr_y < 0 or curr_y >= max_y:
+                                valid = False; break
+                                
                             c_idx = cols[curr_y]
                             val = str(df.iloc[curr_r, c_idx]).strip()
                             if val.lower() in ['x', 'nan', '']:
                                 valid = False; break
                             if val.endswith('.0'): val = val[:-2]
                             
-                            # 🛠 [လော့ဂျစ်အသစ်] လက်ရှိဆဲလ်၏ ဝဲဘက်နှင့် ညာဘက် ဂဏန်းများကိုပါ ဆွဲထုတ်၍ ဒေတာတုံးတု စစ်ဆေးရန်
-                            left_val = str(df.iloc[curr_r, c_idx - 1]).strip() if c_idx - 1 >= 0 else ""
-                            right_val = str(df.iloc[curr_r, c_idx + 1]).strip() if c_idx + 1 < len(df.columns) else ""
-                            neighborhood_signature.append((val, left_val, right_val))
+                            # 🛠 ဝဲ/ယာ ပတ်ဝန်းကျင်ဆဲလ်များကိုပါ ဆွဲထုတ်ပြီး DNA တည်ဆောက်ခြင်း
+                            left_v = str(df.iloc[curr_r, c_idx-1]).strip() if c_idx-1 >= 0 else ""
+                            right_v = str(df.iloc[curr_r, c_idx+1]).strip() if c_idx+1 < len(df.columns) else ""
+                            neighborhood_dna.append((val, left_v, right_v))
                             
                             digits.append(val)
-                            path_str.append(f"R{curr_r+2}_Y{curr_y}")
+                            path_coords.append(f"{curr_r}_{c_idx}")
                             
                         if valid:
                             dtup = tuple(digits)
-                            block_sig = tuple(neighborhood_signature)
-                            path_joined = "->".join(path_str)
+                            path_joined = "->".join(path_coords)
+                            dna_tup = (pos_name, tuple(neighborhood_dna))
                             
-                            # 🛠 [လော့ဂျစ်အသစ်] ဂဏန်းချင်းတူရုံတင်မကဘဲ ဘေးပတ်ဝန်းကျင်ပါ ပုံတူထပ်နေလျှင် လုံးဝလက်မခံဘဲ ပယ်ဖျက်ပစ်ခြင်း
-                            if block_sig in seen_neighborhood_blocks:
-                                # ဒေတာတုံးတူသော်လည်း နေရာမတူပါက ဒုတိယတစ်ခုကို Registry ထဲထည့်သော်လည်း ရမှတ်ထဲမထည့်ပါ
-                                continue
+                            # ဒေတာတုံးကြီးတစ်ခုလုံး ပုံတူထပ်နေလျှင် လုံးဝပယ်ဖျက်ခြင်း
+                            if dna_tup in seen_signatures: continue
+                            seen_signatures.add(dna_tup)
                             
-                            seen_neighborhood_blocks[block_sig] = path_joined
+                            if dtup not in raw_matches[pos_name]:
+                                raw_matches[pos_name][dtup] = set()
+                            raw_matches[pos_name][dtup].add(path_joined)
                             
-                            if dtup not in history_counts: history_counts[dtup] = set()
-                            history_counts[dtup].add(path_joined)
-                            
-        for dtup, paths in history_counts.items():
-            if len(paths) >= 3: 
-                super_groups[pos_name][dtup] = list(paths)
-                
-    return super_groups, head_cols, mid_cols, tail_cols
-
-# --- 4. Target Evaluator Engine ---
-def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_excel_row):
-    target_r = target_excel_row - 2 
-    positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
-    results = {}
-    target_y = len(head_cols) - 1 
-    max_rows = len(df)
+    # --- Target Evaluator Engine ---
+    results = {"Head": [], "Mid": [], "Tail": []}
+    target_y = len(head_cols) - 1
     
     for pos_name, cols in positions:
         prefixes = []
@@ -127,278 +100,190 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
                 if y_step == 0 and r_step == 0: continue
                 start_r = target_r - 3 * r_step
                 start_y = target_y - 3 * y_step
-                if start_r < 0 or start_r >= max_rows or start_y < 0: continue
+                if start_r < 0 or start_r >= target_r or start_y < 0: continue
                 
-                valid, digits, path_str = True, [], []
+                valid, digits = True, []
                 for i in range(3):
                     curr_r = start_r + i * r_step
                     curr_y = start_y + i * y_step
-                    if curr_r < 0 or curr_r >= max_rows or curr_y < 0 or curr_y >= len(cols):
+                    if curr_r < 0 or curr_r >= target_r or curr_y < 0 or curr_y >= len(cols):
                         valid = False; break
                     val = str(df.iloc[curr_r, cols[curr_y]]).strip()
                     if val.lower() in ['x', 'nan', '']: valid = False; break
                     if val.endswith('.0'): val = val[:-2]
                     digits.append(val)
-                    path_str.append(f"R{curr_r+2}_Y{curr_y}")
                     
                 if valid:
-                    prefixes.append({"prefix": tuple(digits), "path": f"{' -> '.join(path_str)} -> [TARGET]"})
-        
-        pos_results = []
+                    prefixes.append(tuple(digits))
+                    
         for guess in range(10):
             guess_str = str(guess)
-            matches = []
+            match_count = 0
+            evidence_details = []
+            
             for pref in prefixes:
-                test_group = pref["prefix"] + (guess_str,)
-                if test_group in super_groups[pos_name]:
-                    matches.append({
-                        "group_digits": test_group,
-                        "target_path": pref["path"],
-                        "history_paths": super_groups[pos_name][test_group][:3]
-                    })
-            if len(matches) >= 3:
-                pos_results.append({"digit": guess_str, "score": len(matches), "evidence": matches})
-        results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
+                test_group = pref + (guess_str,)
+                if test_group in raw_matches[pos_name]:
+                    paths = list(raw_matches[pos_name][test_group])
+                    match_count += len(paths)
+                    evidence_details.append({"group": test_group, "count": len(paths), "paths": paths})
+                    
+            if match_count >= 1:
+                results[pos_name].append({
+                    "digit": guess_str, 
+                    "match_count": match_count,
+                    "evidence": evidence_details
+                })
+                
+        results[pos_name] = sorted(results[pos_name], key=lambda x: x["match_count"])
+        
     return results
 
-# --- 5. High-Resolution Fixed Cell Width Image Engine ---
-def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
-    plt.clf() 
-    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
-    cell_map, all_r, all_y = {}, [], []
+# --- 4. 27 Pairs Grid Rank Engine ---
+def get_digits_by_filter(pos_results, mode_type, min_c=None, max_c=None):
+    if not pos_results: return []
     
-    def add_to_map(path, col_idx):
-        for p in path.split("->"):
-            p = p.strip().replace("[TARGET]", "").strip("-").strip()
-            if p.startswith("R") and "_Y" in p:
-                r, y = int(p.split("_Y")[0][1:]) - 2, int(p.split("_Y")[1])
-                if (r, y) not in cell_map: cell_map[(r, y)] = colors[col_idx]
-                all_r.append(r); all_y.append(y)
-
-    add_to_map(target_path, 0)
-    for i, hp in enumerate(hist_paths): add_to_map(hp, (i % 3) + 1)
-    
-    target_r, target_y = target_excel_row - 2, len(pos_cols) - 1
-    cell_map[(target_r, target_y)] = colors[0]
-    all_r.append(target_r); all_y.append(target_y)
-
-    def get_actual_year_label(y_idx):
-        return 97 + y_idx if (97 + y_idx) < 100 else (y_idx - 3)
-
-    colored_actual_years = set(get_actual_year_label(y) for y in all_y)
-    active_years = []
-    for y in range(len(pos_cols)):
-        curr_act_year = get_actual_year_label(y)
-        if any(abs(curr_act_year - cy) <= 1 for cy in colored_actual_years) or y == target_y:
-            active_years.append(y)
-            
-    active_years = sorted(list(set(active_years)))
-    min_r, max_r = max(0, min(all_r) - 2), min(len(df), max(all_r) + 3)
-    plot_rows = max_r - min_r
-    plot_cols = len(active_years)
-
-    # 📐 Cell Width ပုံသေ Lock ချ၍ ဖုန်းမျက်နှာပြင်ပေါ်တွင် စာလုံးကြီးကြီးပြသနိုင်ရန် ညှိခြင်း
-    fixed_cell_width = 0.55
-    fig_w = max(6, plot_cols * fixed_cell_width)
-    fig_h = max(5, plot_rows * 0.42)
-
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.1) 
-    ax.axis('off')
-    
-    # Watermark
-    fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=22, color='#b0b0b0',
-             ha='center', va='center', alpha=0.11, rotation=25, zorder=0, fontweight='bold')
-    
-    # 🌟 Title Layout Fix (ခေါင်းစဉ်စာသားအား Year မျဉ်းနှင့် အနီးကပ်ဆုံးညှိသည်)
-    draw_number = target_excel_row - 13
-    ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
-                 fontsize=13, pad=12, weight='bold', color='#D4AF37', ha='center')
-
-    table_data, table_colors = [], []
-    for r in range(min_r, max_r):
-        row_text, row_colors = [], []
-        for y_idx in active_years:
-            if r == target_r and y_idx == target_y:
-                val = str(guess_digit)
-            else:
-                val = str(df.iloc[r, pos_cols[y_idx]]).strip().replace('.0','')
-                if val.lower() in ['nan', 'x']: val = ''
-            row_text.append(val)
-            row_colors.append(cell_map.get((r, y_idx), "#f8f9fa"))
-        table_data.append(row_text); table_colors.append(row_colors)
+    # 1. တစ်ခုတည်းသော လမ်းကြောင်း (Single Paths)
+    if mode_type == "single":
+        return [r["digit"] for r in pos_results if r["match_count"] == 1]
         
-    col_labels = [f"{97 + y}" if (97 + y) < 100 else f"{y - 3:02d}" for y in active_years]
-    row_labels = [f"R-{r+2}" for r in range(min_r, max_r)]
-    
-    table = ax.table(cellText=table_data, cellColours=table_colors, 
-                     rowLabels=row_labels, colLabels=col_labels, 
-                     loc='center', cellLoc='center')
-    table.scale(1, 1.5)
-    table.auto_set_font_size(False)
-    
-    # ဆဲလ်တိုင်းကို Font Size 11 အသေ Lock ပိတ်ခြင်း
-    for (row, col), cell in table.get_celld().items():
-        if col >= 0: 
-            cell.set_width(fixed_cell_width * 0.12)
-            cell.set_linewidth(0.4)
-            cell.set_edgecolor('#e0e0e0') 
-            cell.get_text().set_fontsize(10)
-        if (row-1, col) in [(r - min_r, active_years.index(y)) for (r, y) in cell_map.keys() if y in active_years]:
-            cell.get_text().set_fontsize(12)
-            cell.get_text().set_weight('bold')
-            
-    buf = BytesIO()
-    plt.savefig(buf, format="jpeg", dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    return buf
+    # 2. ပုံစံတူ ၂ ခုပါသော အုပ်စု
+    elif mode_type == "double":
+        return [r["digit"] for r in pos_results if r["match_count"] == 2]
+        
+    # 3. ပုံစံတူ ၃ ခုပါသော အုပ်စု
+    elif mode_type == "triple":
+        return [r["digit"] for r in pos_results if r["match_count"] == 3]
+        
+    # 4. စိတ်ကြိုက် Range ကန့်သတ်ချက် အုပ်စု
+    elif mode_type == "custom" and min_c is not None and max_c is not None:
+        return [r["digit"] for r in pos_results if min_c <= r["match_count"] <= max_c]
+        
+    return []
 
-# --- 6. 27 Pairs Grid Rank Combinations Engine ---
-def get_tier_combinations_v9_0(results, tier_index):
-    # ရမှတ်တူညီသော ထိပ်လယ်ပိတ်ဂဏန်းအားလုံးကို အဆင့်အလိုက်စနစ်တကျစုစည်းခြင်း
-    def extract_digits_by_tier(pos):
-        if tier_index >= len(results[pos]): return ["-"]
-        target_score = results[pos][tier_index]["score"]
-        return [r["digit"] for r in results[pos] if r["score"] == target_score]
-
-    h_list = extract_digits_by_tier("Head")
-    m_list = extract_digits_by_tier("Mid")
-    t_list = extract_digits_by_tier("Tail")
+def generate_27_pairs(results, mode_type, min_c=None, max_c=None):
+    h = get_digits_by_filter(results["Head"], mode_type, min_c, max_c)[:3]
+    m = get_digits_by_filter(results["Mid"], mode_type, min_c, max_c)[:3]
+    t = get_digits_by_filter(results["Tail"], mode_type, min_c, max_c)[:3]
     
-    # Cartesian Product ဖြင့် ၂၇ တွဲကို အဆင့်အလိုက် Dynamic ဖြန့်ခင်းခြင်း
-    combos = list(itertools.product(h_list, m_list, t_list))
-    final_pairs = ["".join(c) for c in combos if "-" not in c]
-    
-    return " . ".join(final_pairs) if final_pairs else "No Data"
+    combos = list(itertools.product(h, m, t))
+    return ["".join(c) for c in combos]
 
-# --- 7. Session State Main Logic ---
-if "results" not in st.session_state: st.session_state.results = None
-if "h_cols" not in st.session_state: st.session_state.h_cols = None
-if "m_cols" not in st.session_state: st.session_state.m_cols = None
-if "t_cols" not in st.session_state: st.session_state.t_cols = None
+# --- 5. Actual Result Extract Engine for Backtest ---
+def get_actual_result_string(df, target_r):
+    try:
+        last_col_idx = len(df.columns) - 1
+        h_val = str(df.iloc[target_r, last_col_idx - 2]).strip().replace('.0','')
+        m_val = str(df.iloc[target_r, last_col_idx - 1]).strip().replace('.0','')
+        t_val = str(df.iloc[target_r, last_col_idx]).strip().replace('.0','')
+        return f"{h_val}{m_val}{t_val}"
+    except:
+        return "Unknown"
 
+# --- 6. Main Dashboard Layout ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37;'>⚙️ CONTROL PANEL</h2>", unsafe_allow_html=True)
-    file = st.file_uploader("Upload Excel Data File (.xlsx)", type=["xlsx"])
+    st.markdown("<h2 style='color:#D4AF37;'>⚙️ CORE SYSTEM</h2>", unsafe_allow_html=True)
+    file = st.file_uploader("Upload Calendar Excel (.xlsx)", type=["xlsx"])
     st.markdown("---")
-    target_row = st.number_input("Excel Row Target Number", value=25, min_value=2)
+    
+    if file:
+        st.markdown("### 🔍 TARGET SELECTOR")
+        mode = st.radio("Choose Working Mode:", ["Live Mode 🟢", "Batch Backtest Mode 🟡"])
+        
+        if mode == "Live Mode 🟢":
+            target_row = st.number_input("Target Row Number:", value=45, min_value=5)
+        else:
+            backtest_rounds = st.slider("Backtest Rounds Count (1 to 5):", min_value=1, max_value=5, value=3)
+            st.info("💡 စနစ်မှ လက်ရှိရွေးချယ်ထားသော Row မှ နောက်ကြောင်းပြန် အလိုအလျောက် ပတ်တိုက်စစ်ပေးမည်။")
+            target_row = st.number_input("Starting Row for Backtest:", value=45, min_value=10)
 
 if file:
     df = load_data(file)
-    tab1, tab2 = st.tabs(["📊 MATRIX ANALYSIS", "📸 DESIGN PRINT"])
     
-    with tab1:
-        st.markdown("<h3 style='color:#D4AF37;'>📊 AI Target Matrix Analysis</h3>", unsafe_allow_html=True)
+    if "Batch Backtest Mode 🟡" in mode:
+        st.markdown("<h3 style='color:#D4AF37;'>📊 Automated Robot Batch Backtest Report</h3>", unsafe_allow_html=True)
         
-        if st.button("🚀 Master Filter တိုက်စစ်မည်", use_container_width=True):
-            with st.spinner("ရလဒ်များကို တွက်ချက်နေပါသည်..."):
-                super_groups, head_cols, mid_cols, tail_cols = build_super_groups_fast(df)
-                results = evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_row)
+        if st.button("🚀 Run Batch Backtest", use_container_width=True):
+            wins = 0
+            total_tested = backtest_rounds
+            
+            for offset in range(backtest_rounds):
+                current_target_r = (target_row - 2) - offset
+                excel_row_lbl = current_target_r + 2
                 
-                st.session_state.results = results
-                st.session_state.h_cols = head_cols
-                st.session_state.m_cols = mid_cols
-                st.session_state.t_cols = tail_cols
+                # အနောက်ကွယ်မှ ဒေတာခိုးကြည့်မှုမပါဘဲ အပြတ်တွက်ချက်ခြင်း
+                round_results = analyze_matrix_core(df, current_target_r)
+                
+                # Standard 3-Match VIP ဖြင့် ၂၇ တွဲ ဖွဲ့စည်းခြင်း
+                generated_pairs = generate_27_pairs(round_results, "triple")
+                actual_out = get_actual_result_string(df, current_target_r)
+                
+                is_win = actual_out in generated_pairs
+                if is_win: wins += 1
+                
+                status_lbl = "<span class='win-text'>🏆 STATUS: WIN (✅ HIT)</span>" if is_win else "<span class='lose-text'>🏆 STATUS: LOSE (❌ MISS)</span>"
+                pairs_display = " . ".join(generated_pairs) if generated_pairs else "No Pairs Generated"
+                
+                st.markdown(f"""
+                    <div class="report-card">
+                        <h4>🎯 [ROUND {offset+1}] -> Excel Row {excel_row_lbl}</h4>
+                        <p>✨ <b>Actual Result:</b> <span style="font-size:16px; color:#ffcc00;">{actual_out}</span></p>
+                        <p>🔮 <b>AI VIP 27 Pairs:</b> <span style="color:#b0b0b0;">{pairs_display}</span></p>
+                        <p>{status_lbl}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+            win_rate = (wins / total_tested) * 100 if total_tested > 0 else 0
+            st.markdown("---")
+            st.subheader("📈 FINAL EVALUATION SUMMARY")
+            st.metric("TOTAL WINS", f"{wins} / {total_tested} Rounds")
+            st.metric("WIN RATE PERCENTAGE", f"{win_rate:.1f}%")
+            
+    else:
+        # --- Live Mode - Tab Separated View ---
+        st.markdown("<h3 style='color:#D4AF37;'>📊 Matrix Group Splitter Dashboard</h3>", unsafe_allow_html=True)
+        
+        if st.button("🚀 Run Master Filter Analytics", use_container_width=True):
+            with st.spinner("Calculating Pure Logic..."):
+                target_r_idx = target_row - 2
+                st.session_state.live_results = analyze_matrix_core(df, target_r_idx)
                 st.success("✅ တွက်ချက်မှု အောင်မြင်ပါသည်။")
-        
-        if st.session_state.results is not None:
-            results = st.session_state.results
-            h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
+                
+        if "live_results" in st.session_state and st.session_state.live_results is not None:
+            res = st.session_state.live_results
             
-            # ၂၇ တွဲ ဖြန့်ခင်းမှုစနစ်သစ် (v9.0 Strict Clean Tiers)
-            sv_pairs = get_tier_combinations_v9_0(results, 0)
-            v_pairs  = get_tier_combinations_v9_0(results, 1)
-            b_pairs  = get_tier_combinations_v9_0(results, 2)
+            t1, t2, t3, t4 = st.tabs([
+                "🎯 LONE Bိုင် CONSENSUS", 
+                "🥈 2-MATCH GROUPS", 
+                "🥇 3-MATCH GROUPS", 
+                "⚙️ CUSTOM RANGE (* to *)"
+            ])
             
-            copy_text = f"🥇 SUPER VIP ***\n{sv_pairs}\n\n🥈 VIP **\n{v_pairs}\n\n🥉 BACKUP *\n{b_pairs}"
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(f"""
-                <div class="metric-card" style="border-left: 5px solid #ffcc00;">
-                    <div class="metric-title" style="color:#ffcc00;">🥇 SUPER VIP ***</div>
-                    <div class="metric-value">{sv_pairs}</div>
-                </div>
-                <div class="metric-card" style="border-left: 5px solid #00ccff;">
-                    <div class="metric-title" style="color:#00ccff;">🥈 VIP **</div>
-                    <div class="metric-value">{v_pairs}</div>
-                </div>
-                <div class="metric-card" style="border-left: 5px solid #9ca3af;">
-                    <div class="metric-title" style="color:#9ca3af;">🥉 BACKUP *</div>
-                    <div class="metric-value">{b_pairs}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            st.text_area("📋 Copy Pairs Text:", value=copy_text, height=140, disabled=True)
-            st.markdown("<br><hr>", unsafe_allow_html=True)
-            
-            res_col1, res_col2, res_col3 = st.columns(3)
-            positions_ui = [("Head (ထိပ်)", "Head", res_col1), ("Mid (အလယ်)", "Mid", res_col2), ("Tail (ပိတ်)", "Tail", res_col3)]
-            
-            for title, key, col in positions_ui:
-                with col:
-                    st.subheader(title)
-                    if not results[key]: st.info("ထောက်ခံမှု မတွေ့ပါ။")
-                    else:
-                        for item in results[key]:
-                            with st.expander(f"ဂဏန်း [ {item['digit']} ] - လမ်းကြောင်း {item['score']} ခု"):
-                                groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
-                                for idx, grp in enumerate(groups):
-                                    st.markdown(f"**📋 GROUP-{idx+1} CODE**")
-                                    package = {
-                                        "target_row": target_row, "position_title": key, "guess_digit": item['digit'],
-                                        "group_idx": idx + 1, "target_path": grp[0]['target_path'], "history_paths": grp[0]['history_paths']
-                                    }
-                                    st.code(json.dumps(package), language="json")
-                                    st.markdown("---")
-
-    with tab2:
-        st.markdown("<h3 style='color:#D4AF37;'>📸 Design Print Studio</h3>", unsafe_allow_html=True)
-        
-        if st.session_state.h_cols is not None:
-            head_cols, mid_cols, tail_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
-        else:
-            head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
-            
-        # Paste Box Input area
-        paste_input = st.text_area("📥 PASTE CODE HERE", height=100, key="studio_paste_box")
-        
-        if paste_input.strip():
-            # 🛠 Auto Download + Auto Clear Box System (v9.0 Fixed)
-            if st.button("📸 PRINT", use_container_width=True):
-                try:
-                    cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
-                    cleaned_input = cleaned_input.replace('\n', '').strip()
-                    
-                    pkg = json.loads(cleaned_input)
-                    t_row = pkg["target_row"]
-                    pos_title = pkg["position_title"]
-                    g_digit = pkg["guess_digit"]
-                    g_idx = pkg["group_idx"]
-                    t_path = pkg["target_path"]
-                    h_paths = pkg["history_paths"]
-                    
-                    current_cols = head_cols if pos_title=="Head" else (mid_cols if pos_title=="Mid" else tail_cols)
-                    draw_num = t_row - 13
-                    file_naming = f"{draw_num}-2026_{pos_title}_Digit_{g_digit}_Group_{g_idx}.jpg"
-                    
-                    img_data = draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title)
-                    
-                    # JS Injection for Instant Downloader
-                    b64_img = base64.b64encode(img_data.getvalue()).decode()
-                    js_script = f"""
-                        <a id="auto_dl_link" href="data:image/jpeg;base64,{b64_img}" download="{file_naming}"></a>
-                        <script>
-                            document.getElementById('auto_dl_link').click();
-                        </script>
-                    """
-                    st.components.v1.html(js_script, height=0)
-                    st.success(f"🎯 Blueprint `{file_naming}` အား ဖုန်းထဲသို့ အလိုအလျောက် ဒေါင်းလုဒ်ရယူပြီးပါပြီ။")
-                    
-                    # 🔒 Box စာသားကို ရှင်းလင်းပစ်ပြီးမှ Refresh ခေါ်ခြင်း
-                    st.session_state.studio_paste_box = ""
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error("❌ စာသားပုံစံ မမှန်ကန်ပါ။ Tab 1 မှ ကုဒ်တစ်ခုလုံးကို ပြန်လည်ကူးယူလာပါ။")
+            with t1:
+                st.markdown("<h4>🎯 သီးခြားလမ်းကြောင်းများစွာမှ ဘုံအတည်ပြုပေးသော လုံးဘိုင်ဂဏန်း</h4>", unsafe_allow_html=True)
+                s_h = get_digits_by_filter(res["Head"], "single")
+                s_m = get_digits_by_filter(res["Mid"], "single")
+                s_t = get_digits_by_filter(res["Tail"], "single")
+                st.write(f"**ထိပ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_h) if s_h else 'မရှိပါ'}")
+                st.write(f"**လယ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_m) if s_m else 'မရှိပါ'}")
+                st.write(f"**ပိတ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_t) if s_t else 'မရှိပါ'}")
+                
+            with t2:
+                st.markdown("<h4>🥈 ပုံစံတူ ၂ ခုစီသာ ကိုက်ညီသော လမ်းကြောင်းအတွဲများ</h4>", unsafe_allow_html=True)
+                pairs_2 = generate_27_pairs(res, "double")
+                st.text_area("2-Match Pairs Text:", value=" . ".join(pairs_2) if pairs_2 else "No Data", height=100)
+                
+            with t3:
+                st.markdown("<h4>🥇 စံပြဗျူဟာ ပုံစံတူ ၃ ခုတိတိ ကိုက်ညီသော VIP အတွဲများ</h4>", unsafe_allow_html=True)
+                pairs_3 = generate_27_pairs(res, "triple")
+                st.text_area("VIP 3-Match Pairs Text:", value=" . ".join(pairs_3) if pairs_3 else "No Data", height=100)
+                
+            with t4:
+                st.markdown("<h4>⚙️ Custom Range အုပ်စု အရေအတွက် ကန့်သတ်ခြင်း</h4>", unsafe_allow_html=True)
+                c_min = st.number_input("Minimum Match Count:", value=4, min_value=1)
+                c_max = st.number_input("Maximum Match Count:", value=6, min_value=1)
+                
+                pairs_c = generate_27_pairs(res, "custom", c_min, c_max)
+                st.text_area(f"Custom Pairs ({c_min} to {c_max} Matches):", value=" . ".join(pairs_c) if pairs_c else "No Data", height=100)
 else:
-    st.info("💡 စတင်ရန်အတွက် ဘယ်ဘက် Sidebar Panel တွင် Excel (.xlsx) ဒေတာဖိုင်ကို အရင်ဆုံး တင်ပေးပါ Bro!")
+    st.info("💡 ဆက်လက်လုပ်ဆောင်ရန်အတွက် ဘယ်ဘက် Sidebar Panel တွင် Excel (.xlsx) ဒေတာဖိုင်ကို တင်ပေးပါ Bro!")
