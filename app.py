@@ -8,7 +8,7 @@ import re
 # --- 1. Streamlit Configuration & Dark Theme UI ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D Pro", page_icon="🎯")
 
-# App တစ်ခုလုံးကို ဆရာကျကျ အထာကျကျ ဖြစ်စေမည့် Custom Premium CSS Styling
+# App တစ်ခုလုံးကို ဆရာကြီးများအကြိုက် VIP ဆန်သွားစေမည့် Custom Premium CSS Styling
 st.markdown("""
     <style>
     /* Global Background and Text */
@@ -21,15 +21,16 @@ st.markdown("""
     /* Metrics / Summary Cards Styling */
     .metric-card {
         background-color: #1f2937; border: 1px solid #374151; border-radius: 10px;
-        padding: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        padding: 15px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        margin-bottom: 10px;
     }
-    .metric-title { color: #9ca3af; font-size: 14px; font-weight: 500; }
-    .metric-value { color: #D4AF37; font-size: 24px; font-weight: bold; margin-top: 5px; }
+    .metric-title { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+    .metric-value { color: #ffffff; font-size: 18px; font-weight: 500; }
     
     /* Button Styling */
     div.stButton > button {
         background-color: #D4AF37 !important; color: #0e1117 !important; 
-        font-weight: bold !important; font-size: 16px !important;
+        font-weight: bold !important; font-size: 15px !important;
         border-radius: 8px !important; transition: all 0.3s ease !important;
     }
     div.stButton > button:hover { background-color: #f3cd44 !important; transform: scale(1.01); }
@@ -135,7 +136,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 5. Premium Tight Layout Image Engine (Title Pressed to Year Row) ---
+# --- 5. Ultra-Tight Layout Image Engine (Title Pressed Down) ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
@@ -167,19 +168,19 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 📐 Layout ကို သုံးဖက်ပတ်လည် .3 Margin အတိအကျချန်ခြင်း
+    # 📐 Layout ကို သုံးဖက်ပတ်လည် .3 Margin နှင့် ထိပ်ကို အနီးကပ်ဆုံးညှိခြင်း
     fig, ax = plt.subplots(figsize=(max(plot_cols * 0.42, 5), max(plot_rows * 0.42, 4)))
-    fig.subplots_adjust(left=0.12, right=0.88, top=0.90, bottom=0.12) 
+    fig.subplots_adjust(left=0.12, right=0.88, top=0.92, bottom=0.12) # Top ကို အမြင့်ဆုံးအထိ ညှပ်ထားသည်
     ax.axis('off')
     
     # 🔒 PREMIUM BACKGROUND WATERMARK
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=24, color='#b0b0b0',
              ha='center', va='center', alpha=0.12, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 FIXED GOLDEN TITLE (ယောကောလံခေါင်းစဉ်နှင့် အနီးကပ်ဆုံး ဖြစ်အောင် Pad=2 သို့ လျှော့ချထားပါသည်)
+    # 🌟 ULTRA-TIGHT GOLDEN TITLE (ဇယားခေါင်းစဉ်နှင့် လုံးဝ ကပ်လျက်ဖြစ်အောင် y=0.98 ထိ ထိုးသိပ်ထားပါသည်)
     draw_number = target_excel_row - 13
-    ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
-                 fontsize=13, pad=2, weight='bold', color='#D4AF37', ha='center')
+    ax.text(0.5, 0.98, f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
+            fontsize=13, weight='bold', color='#D4AF37', ha='center', transform=ax.transAxes)
 
     table_data, table_colors = [], []
     for r in range(min_r, max_r):
@@ -203,7 +204,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     table.scale(1, 1.5)
     table.set_fontsize(9)
     
-    # 📐 Column Width ကို အခုထက်ပိုကျဉ်းပြီး 0.052 သို့ အချောသပ်ညှိခြင်း
+    # 📐 Column Width အကျဉ်းဆုံး 0.052 စနစ်
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
             cell.set_width(0.052)
@@ -225,19 +226,20 @@ if "m_cols" not in st.session_state: st.session_state.m_cols = None
 if "t_cols" not in st.session_state: st.session_state.t_cols = None
 if "paste_box_value" not in st.session_state: st.session_state.paste_box_value = ""
 
-# --- 7. Sidebar - One-Time Upload Configuration ---
+# --- 7. Sidebar Panel ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37;'>⚙️ Control Panel</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#D4AF37;'>⚙️ CONTROL PANEL</h2>", unsafe_allow_html=True)
     file = st.file_uploader("Upload Excel Data File (.xlsx)", type=["xlsx"])
     st.markdown("---")
     target_row = st.number_input("Excel Row Target Number", value=25, min_value=2)
-    st.markdown("<br><p style='color:#888;'>v6.1 Powered by Adaptive Engine</p>", unsafe_allow_html=True)
+    st.markdown("<br><p style='color:#888;'>v7.0 Stable Release</p>", unsafe_allow_html=True)
 
 # --- 8. Main Application Interface ---
 if file:
     df = load_data(file)
     
-    tab1, tab2 = st.tabs(["🏆 Tab 1: Fast Analysis Results", "📸 Tab 2: Print Blueprint Generator"])
+    # မင်းအလိုရှိသည့်အတိုင်း Tab နာမည်များကို Premium ဆန်ဆန် ပြောင်းလဲခြင်း
+    tab1, tab2 = st.tabs(["📊 MATRIX ANALYSIS", "📸 DESIGN PRINT"])
     
     with tab1:
         st.markdown("<h3 style='color:#D4AF37;'>📊 AI Target Matrix Analysis</h3>", unsafe_allow_html=True)
@@ -247,31 +249,48 @@ if file:
                 super_groups, head_cols, mid_cols, tail_cols = build_super_groups_fast(df)
                 results = evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_row)
                 
-                # Lock into Session State
                 st.session_state.results = results
                 st.session_state.h_cols = head_cols
                 st.session_state.m_cols = mid_cols
                 st.session_state.t_cols = tail_cols
                 st.success("✅ တွက်ချက်မှု အောင်မြင်ပါသည်။")
         
-        # Display Stable Locked Results from Memory
         if st.session_state.results is not None:
             results = st.session_state.results
             h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
             
-            # --- Premium Metric Cards Summary Display ---
+            # --- 🌟 Star Tiers System & Copy Logic (ဒေါင်လိုက် Pairs စနစ်) ---
+            h_top = [results["Head"][i]["digit"] if i < len(results["Head"]) else "-" for i in range(3)]
+            m_top = [results["Mid"][i]["digit"] if i < len(results["Mid"]) else "-" for i in range(3)]
+            t_top = [results["Tail"][i]["digit"] if i < len(results["Tail"]) else "-" for i in range(3)]
+            
+            p_super = f"ထိပ် [ {h_top[0]} ] • လယ် [ {m_top[0]} ] • ပိတ် [ {t_top[0]} ]"
+            p_vip   = f"ထိပ် [ {h_top[1]} ] • လယ် [ {m_top[1]} ] • ပိတ် [ {t_top[1]} ]"
+            p_back  = f"ထိပ် [ {h_top[2]} ] • လယ် [ {m_top[2]} ] • ပိတ် [ {t_top[2]} ]"
+            
+            # Clipboard ထဲသို့ တစ်ချက်တည်းဖြင့် အကုန်ကူးယူနိုင်မည့် စာသားပုံစံ
+            copy_text = f"🥇 [ SUPER VIP *** ] : {p_super}\n🥈 [ VIP ** ]       : {p_vip}\n🥉 [ BACKUP * ]     : {p_back}"
+            
             st.markdown("<br>", unsafe_allow_html=True)
-            sc1, sc2, sc3 = st.columns(3)
-            for i, (p_title, p_key, sc_col) in enumerate([("Top Digit", "Head", sc1), ("Middle Digit", "Mid", sc2), ("Tail Digit", "Tail", sc3)]):
-                with sc_col:
-                    top_val = results[p_key][0]["digit"] if results[p_key] else "N/A"
-                    top_score = results[p_key][0]["score"] if results[p_key] else 0
-                    st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-title">🌟 Best {p_title}</div>
-                            <div class="metric-value">[ {top_val} ] <span style='font-size:14px;color:#888;'>Paths: {top_score}</span></div>
-                        </div>
-                    """, unsafe_allow_html=True)
+            
+            # UI Tier Boxes
+            st.markdown(f"""
+                <div class="metric-card" style="border-left: 5px solid #ffcc00;">
+                    <div class="metric-title" style="color:#ffcc00;">🥇 SUPER VIP ***</div>
+                    <div class="metric-value">{p_super}</div>
+                </div>
+                <div class="metric-card" style="border-left: 5px solid #00ccff;">
+                    <div class="metric-title" style="color:#00ccff;">🥈 VIP **</div>
+                    <div class="metric-value">{p_vip}</div>
+                </div>
+                <div class="metric-card" style="border-left: 5px solid #9ca3af;">
+                    <div class="metric-title" style="color:#9ca3af;">🥉 BACKUP *</div>
+                    <div class="metric-value">{p_back}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # 📋 COPY ALL PAIRS BUTTON
+            st.text_area("📋 Copy Pairs Text (အောက်ကခလုတ်ဖြင့် တိုက်ရိုက်ကူးယူနိုင်ပါသည်):", value=copy_text, height=90, disabled=True)
             
             st.markdown("<br><hr>", unsafe_allow_html=True)
             res_col1, res_col2, res_col3 = st.columns(3)
@@ -286,7 +305,7 @@ if file:
                             with st.expander(f"ဂဏန်း [ {item['digit']} ] - လမ်းကြောင်း {item['score']} ခု"):
                                 groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
                                 for idx, grp in enumerate(groups):
-                                    st.markdown(f"**📦 အုပ်စု {idx+1} (အောက်ပါကုဒ်ကို ကူးယူပါ)**")
+                                    st.markdown(f"**📋 GROUP-{idx+1} CODE**")
                                     package = {
                                         "target_row": target_row, "position_title": key, "guess_digit": item['digit'],
                                         "group_idx": idx + 1, "target_path": grp[0]['target_path'], "history_paths": grp[0]['history_paths']
@@ -295,22 +314,19 @@ if file:
                                     st.markdown("---")
 
     with tab2:
-        st.markdown("<h3 style='color:#D4AF37;'>📸 Lightning Studio - Direct Printing</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#D4AF37;'>📸 Design Print Studio</h3>", unsafe_allow_html=True)
         
-        # Shared columns build
         if st.session_state.h_cols is not None:
             head_cols, mid_cols, tail_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
         else:
             head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
             
-        # Paste Input Box
-        paste_input = st.text_area("📋 Tab 1 မှ မိတ္တူကူးလာသော အုပ်စုစာသားကို Paste ချပါ:", 
-                                   value=st.session_state.paste_box_value, height=100, key="paste_box_area")
+        # Paste Input Box (ပုံစံ ၂ အတိုင်း ခလုတ်နှင့် အမြဲတိုက်ရိုက်ချိတ်ဆက်ထားပါသည်)
+        paste_input = st.text_area("📥 PASTE CODE HERE", value=st.session_state.paste_box_value, height=100, key="paste_box_area")
         
         if paste_input.strip():
-            if st.button("📸 Print (ပုံထုတ်မည်)", use_container_width=True):
+            if st.button("📸 PRINT BLUEPRINT", use_container_width=True):
                 try:
-                    # ဖုန်းမှာ ကူးရင် ပါလာတတ်တဲ့ "> " သင်္ကေတ အပိုများကို သန့်စင်ခြင်း
                     cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
                     cleaned_input = cleaned_input.replace('\n', '').strip()
                     
@@ -326,13 +342,14 @@ if file:
                     draw_num = t_row - 13
                     file_naming = f"{draw_num}-2026_{pos_title}_Digit_{g_digit}_Group_{g_idx}.jpg"
                     
-                    # 🚀 RAM Memory ထဲတွင် ပုံထုတ်ယူခြင်း
+                    # Image generation in RAM memory
                     img_data = draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title)
                     
-                    st.success(f"🎯 ပုံဖန်တီးမှု အောင်မြင်သည်- {pos_title} Digit {g_digit} (အုပ်စု {g_idx})")
+                    st.success(f"🎯 Blueprint ဖန်တီးမှု အောင်မြင်သည်- {pos_title} Digit {g_digit} (အုပ်စု {g_idx})")
                     
+                    # 🚀 AUTO DOWNLOAD TRIGGER BUTTON
                     st.download_button(
-                        label="📥 ဖုန်း/ကွန်ပျူတာထဲသို့ တိုက်ရိုက်သိမ်းဆည်းမည် (Download)",
+                        label="📥 DOWNLOAD NOW (ဖုန်းထဲသို့တိုက်ရိုက်သိမ်းဆည်းရန်နှိပ်ပါ)",
                         data=img_data,
                         file_name=file_naming,
                         mime="image/jpeg",
@@ -340,7 +357,7 @@ if file:
                         key="direct_download_trigger"
                     )
                     
-                    # Box ကို Auto-Clear လုပ်ရန် State ရှင်းလင်းခြင်း
+                    # 🔒 AUTO-CLEAR BOX: ပုံထုတ်ပြီးသည်နှင့် Box စာသားကို ချက်ချင်းရှင်းလင်းပစ်ခြင်း
                     st.session_state.paste_box_value = ""
                     
                 except Exception as e:
