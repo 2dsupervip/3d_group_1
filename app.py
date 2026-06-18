@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import json
 import re
+import itertools
 
 # --- 1. Streamlit Configuration & Dark Theme UI ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D Pro", page_icon="🎯")
 
-# App တစ်ခုလုံးကို ဆရာကြီးများအကြိုက် VIP ဆန်သွားစေမည့် Custom Premium CSS Styling
 st.markdown("""
     <style>
     /* Global Background and Text */
@@ -25,7 +25,7 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .metric-title { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
-    .metric-value { color: #ffffff; font-size: 18px; font-weight: 500; }
+    .metric-value { color: #ffffff; font-size: 18px; font-weight: 500; letter-spacing: 1px; }
     
     /* Button Styling */
     div.stButton > button {
@@ -136,7 +136,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 5. Ultra-Tight Layout Image Engine (Title Pressed Down) ---
+# --- 5. Premium Image Engine (Calendar Overlap Correctly Checked v7.6) ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
@@ -157,10 +157,17 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     cell_map[(target_r, target_y)] = colors[0]
     all_r.append(target_r); all_y.append(target_y)
 
-    colored_years = sorted(list(set(all_y)))
+    # 🛠 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] Column Space အစား ကလင်ဒါနှစ် (Actual Year) ကို အခြေခံ၍ Smart Crop ပြုလုပ်ခြင်း
+    def get_actual_year_label(y_idx):
+        return 97 + y_idx if (97 + y_idx) < 100 else (y_idx - 3)
+
+    colored_actual_years = set(get_actual_year_label(y) for y in all_y)
     active_years = []
+    
     for y in range(len(pos_cols)):
-        if any(abs(y - cy) <= 2 for cy in colored_years) or y == target_y:
+        curr_act_year = get_actual_year_label(y)
+        # မိမိနှစ် သို့မဟုတ် ဘေးချင်းကပ်နှစ်များ ကလင်ဒါအရကိုက်ညီလျှင် ချန်လှပ်မည်
+        if any(abs(curr_act_year - cy) <= 1 for cy in colored_actual_years) or y == target_y:
             active_years.append(y)
             
     active_years = sorted(list(set(active_years)))
@@ -168,16 +175,16 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 📐 Layout ကို သုံးဖက်ပတ်လည် .3 Margin နှင့် ထိပ်ကို အနီးကပ်ဆုံးညှိခြင်း
+    # 📐 Layout ကို သုံးဖက်ပတ်လည် .3 Margin အပြည့်ချန်ခြင်း
     fig, ax = plt.subplots(figsize=(max(plot_cols * 0.42, 5), max(plot_rows * 0.42, 4)))
-    fig.subplots_adjust(left=0.12, right=0.88, top=0.92, bottom=0.12) # Top ကို အမြင့်ဆုံးအထိ ညှပ်ထားသည်
+    fig.subplots_adjust(left=0.12, right=0.88, top=0.92, bottom=0.12) 
     ax.axis('off')
     
     # 🔒 PREMIUM BACKGROUND WATERMARK
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=24, color='#b0b0b0',
              ha='center', va='center', alpha=0.12, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 ULTRA-TIGHT GOLDEN TITLE (ဇယားခေါင်းစဉ်နှင့် လုံးဝ ကပ်လျက်ဖြစ်အောင် y=0.98 ထိ ထိုးသိပ်ထားပါသည်)
+    # 🌟 ULTRA-TIGHT GOLDEN TITLE (ခေါင်းစဉ်စာသားကို ဇယားထိပ်သို့ အနီးကပ်ဆုံး ထိုးသိပ်ကပ်ထားပါသည်)
     draw_number = target_excel_row - 13
     ax.text(0.5, 0.98, f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
             fontsize=13, weight='bold', color='#D4AF37', ha='center', transform=ax.transAxes)
@@ -204,7 +211,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     table.scale(1, 1.5)
     table.set_fontsize(9)
     
-    # 📐 Column Width အကျဉ်းဆုံး 0.052 စနစ်
+    # 📐 Column Width စနစ်တကျ ကျဉ်းမြောင်းစေခြင်း
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
             cell.set_width(0.052)
@@ -219,26 +226,51 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 6. Session State Initializing ---
+# --- 6. Helper Function for Advanced Pairs Grouping ---
+def get_tier_combinations(results, tier_index):
+    # သက်ဆိုင်ရာ Rank အလိုက် ဒေတာရှိမရှိ စစ်ဆေးပြီး အစုအဖွဲ့အတွဲလိုက်ထုတ်ပေးရန်
+    h_list = [results["Head"][tier_index]["digit"]] if tier_index < len(results["Head"]) else []
+    m_list = [results["Mid"][tier_index]["digit"]] if tier_index < len(results["Mid"]) else []
+    t_list = [results["Tail"][tier_index]["digit"]] if tier_index < len(results["Tail"]) else []
+    
+    # အကယ်၍ ရမှတ်တူညီသော ဂဏန်းများရှိခဲ့ပါက ၎င်းတို့ကိုပါ ထည့်သွင်းတွက်ချက်ရန်
+    if tier_index < len(results["Head"]):
+        h_score = results["Head"][tier_index]["score"]
+        h_list = [r["digit"] for r in results["Head"] if r["score"] == h_score]
+    if tier_index < len(results["Mid"]):
+        m_score = results["Mid"][tier_index]["score"]
+        m_list = [r["digit"] for r in results["Mid"] if r["score"] == m_score]
+    if tier_index < len(results["Tail"]):
+        t_score = results["Tail"][tier_index]["score"]
+        t_list = [r["digit"] for r in results["Tail"] if r["score"] == t_score]
+        
+    if not h_list: h_list = ["-"]
+    if not m_list: m_list = ["-"]
+    if not t_list: t_list = ["-"]
+    
+    # Cartesian Product ဖြင့် ပေါင်းစပ်နိုင်သမျှ အတွဲအစပ်အားလုံးထုတ်ယူခြင်း
+    combos = list(itertools.product(h_list, m_list, t_list))
+    return " . ".join(["".join(c) for c in combos])
+
+# --- 7. Session State Initializing ---
 if "results" not in st.session_state: st.session_state.results = None
 if "h_cols" not in st.session_state: st.session_state.h_cols = None
 if "m_cols" not in st.session_state: st.session_state.m_cols = None
 if "t_cols" not in st.session_state: st.session_state.t_cols = None
 if "paste_box_value" not in st.session_state: st.session_state.paste_box_value = ""
 
-# --- 7. Sidebar Panel ---
+# --- 8. Sidebar Panel ---
 with st.sidebar:
     st.markdown("<h2 style='color:#D4AF37;'>⚙️ CONTROL PANEL</h2>", unsafe_allow_html=True)
     file = st.file_uploader("Upload Excel Data File (.xlsx)", type=["xlsx"])
     st.markdown("---")
     target_row = st.number_input("Excel Row Target Number", value=25, min_value=2)
-    st.markdown("<br><p style='color:#888;'>v7.0 Stable Release</p>", unsafe_allow_html=True)
+    st.markdown("<br><p style='color:#888;'>v7.6 Perfect Logic Edition</p>", unsafe_allow_html=True)
 
-# --- 8. Main Application Interface ---
+# --- 9. Main Application Interface ---
 if file:
     df = load_data(file)
     
-    # မင်းအလိုရှိသည့်အတိုင်း Tab နာမည်များကို Premium ဆန်ဆန် ပြောင်းလဲခြင်း
     tab1, tab2 = st.tabs(["📊 MATRIX ANALYSIS", "📸 DESIGN PRINT"])
     
     with tab1:
@@ -259,38 +291,34 @@ if file:
             results = st.session_state.results
             h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
             
-            # --- 🌟 Star Tiers System & Copy Logic (ဒေါင်လိုက် Pairs စနစ်) ---
-            h_top = [results["Head"][i]["digit"] if i < len(results["Head"]) else "-" for i in range(3)]
-            m_top = [results["Mid"][i]["digit"] if i < len(results["Mid"]) else "-" for i in range(3)]
-            t_top = [results["Tail"][i]["digit"] if i < len(results["Tail"]) else "-" for i in range(3)]
+            # 🛠 [လော့ဂျစ်အသစ်] စနစ်ကျသော ၃ လုံးတွဲ ကွက်တိအတွဲအစပ်စနစ် (Tier Formatting)
+            pairs_super = get_tier_combinations(results, 0)
+            pairs_vip   = get_tier_combinations(results, 1)
+            pairs_backup = get_tier_combinations(results, 2)
             
-            p_super = f"ထိပ် [ {h_top[0]} ] • လယ် [ {m_top[0]} ] • ပိတ် [ {t_top[0]} ]"
-            p_vip   = f"ထိပ် [ {h_top[1]} ] • လယ် [ {m_top[1]} ] • ပိတ် [ {t_top[1]} ]"
-            p_back  = f"ထိပ် [ {h_top[2]} ] • လယ် [ {m_top[2]} ] • ပိတ် [ {t_top[2]} ]"
-            
-            # Clipboard ထဲသို့ တစ်ချက်တည်းဖြင့် အကုန်ကူးယူနိုင်မည့် စာသားပုံစံ
-            copy_text = f"🥇 [ SUPER VIP *** ] : {p_super}\n🥈 [ VIP ** ]       : {p_vip}\n🥉 [ BACKUP * ]     : {p_back}"
+            # Format တကျ စုစည်းထားသော စာသားပုံစံ
+            copy_text = f"🥇 SUPER VIP ***\n{pairs_super}\n\n🥈 VIP **\n{pairs_vip}\n\n🥉 BACKUP *\n{pairs_backup}"
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # UI Tier Boxes
+            # UI Displays
             st.markdown(f"""
                 <div class="metric-card" style="border-left: 5px solid #ffcc00;">
                     <div class="metric-title" style="color:#ffcc00;">🥇 SUPER VIP ***</div>
-                    <div class="metric-value">{p_super}</div>
+                    <div class="metric-value">{pairs_super}</div>
                 </div>
                 <div class="metric-card" style="border-left: 5px solid #00ccff;">
                     <div class="metric-title" style="color:#00ccff;">🥈 VIP **</div>
-                    <div class="metric-value">{p_vip}</div>
+                    <div class="metric-value">{pairs_vip}</div>
                 </div>
                 <div class="metric-card" style="border-left: 5px solid #9ca3af;">
                     <div class="metric-title" style="color:#9ca3af;">🥉 BACKUP *</div>
-                    <div class="metric-value">{p_back}</div>
+                    <div class="metric-value">{pairs_backup}</div>
                 </div>
             """, unsafe_allow_html=True)
             
-            # 📋 COPY ALL PAIRS BUTTON
-            st.text_area("📋 Copy Pairs Text (အောက်ကခလုတ်ဖြင့် တိုက်ရိုက်ကူးယူနိုင်ပါသည်):", value=copy_text, height=90, disabled=True)
+            # 📋 COPY AREA
+            st.text_area("📋 Copy Pairs Text (အောက်ကခလုတ်ဖြင့် တိုက်ရိုက်ကူးယူနိုင်ပါသည်):", value=copy_text, height=130, disabled=True)
             
             st.markdown("<br><hr>", unsafe_allow_html=True)
             res_col1, res_col2, res_col3 = st.columns(3)
@@ -321,7 +349,7 @@ if file:
         else:
             head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
             
-        # Paste Input Box (ပုံစံ ၂ အတိုင်း ခလုတ်နှင့် အမြဲတိုက်ရိုက်ချိတ်ဆက်ထားပါသည်)
+        # Paste Input Box
         paste_input = st.text_area("📥 PASTE CODE HERE", value=st.session_state.paste_box_value, height=100, key="paste_box_area")
         
         if paste_input.strip():
@@ -357,7 +385,7 @@ if file:
                         key="direct_download_trigger"
                     )
                     
-                    # 🔒 AUTO-CLEAR BOX: ပုံထုတ်ပြီးသည်နှင့် Box စာသားကို ချက်ချင်းရှင်းလင်းပစ်ခြင်း
+                    # Box စာသားကို ချက်ချင်းရှင်းလင်းပစ်ခြင်း
                     st.session_state.paste_box_value = ""
                     
                 except Exception as e:
