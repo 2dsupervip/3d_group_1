@@ -138,7 +138,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 5. New High-Contrast Dynamic Crop Image Engine (v8.0) ---
+# --- 5. Ultimate Fixed Image Engine (No Overlap, Standard Cell Sizing) ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
@@ -162,6 +162,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     def get_actual_year_label(y_idx):
         return 97 + y_idx if (97 + y_idx) < 100 else (y_idx - 3)
 
+    # 🛠 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ကလင်ဒါနှစ်အလိုက် နေရာမှန်ကွက်တိ ဖြတ်တောက်ခြင်း
     colored_actual_years = set(get_actual_year_label(y) for y in all_y)
     active_years = []
     for y in range(len(pos_cols)):
@@ -174,20 +175,20 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 🛠 [ပြင်ဆင်ချက်] ကော်လံအရေအတွက်ပေါ်မူတည်၍ ဇယားကွက်မကျုံ့သွားစေရန် Fig Size နှင့် Cell Width ကို Dynamic အချိုးကျညှိခြင်း
-    dynamic_width = max(0.45, min(0.9, 12.0 / plot_cols)) 
-    fig_w = max(6, plot_cols * dynamic_width)
+    # 📐 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ကော်လံအရေအတွက်နည်းသွားသော်လည်း ဇယားပုံမပျက်စေရန် Cell Width ပုံသေသတ်မှတ်ခြင်း
+    fixed_cell_width = 0.55
+    fig_w = max(6, plot_cols * fixed_cell_width)
     fig_h = max(5, plot_rows * 0.42)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.subplots_adjust(left=0.1, right=0.9, top=0.88, bottom=0.1) 
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.1) 
     ax.axis('off')
     
     # 🔒 PREMIUM WATERMARK
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=22, color='#b0b0b0',
              ha='center', va='center', alpha=0.11, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 ULTRA-TIGHT TITLE PAD FIX (ဇယားခေါင်းစဉ်နှင့် Year Row ကပ်လျက်ဖြစ်အောင် pad ကို အနည်းဆုံးအထိ ညှိထားပါသည်)
+    # 🌟 FIXED TITLE (ဇယားခေါင်းစဉ်အား Year Label မျဉ်းပေါ်တိုက်ရိုက်ကပ်လျက် တပ်ဆင်ခြင်း)
     draw_number = target_excel_row - 13
     ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
                  fontsize=13, pad=12, weight='bold', color='#D4AF37', ha='center')
@@ -214,10 +215,10 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     table.scale(1, 1.5)
     table.set_fontsize(10)
     
-    # 📐 Dynamic Column Width assigning
+    # ဆဲလ်တစ်ခုချင်းစီ၏ အတိုင်းအတာကို ပုံသေ Lock ခတ်ခြင်း
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
-            cell.set_width(dynamic_width * 0.12)
+            cell.set_width(fixed_cell_width * 0.12)
             cell.set_linewidth(0.4)
             cell.set_edgecolor('#e0e0e0') 
         if (row-1, col) in [(r - min_r, active_years.index(y)) for (r, y) in cell_map.keys() if y in active_years]:
@@ -229,33 +230,25 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 6. 27 Pairs Grid Generator Logic ---
-def get_all_27_pairs_formatted(results):
-    h_all, m_all, t_all = [], [], []
-    
-    # ထိပ်၊ လယ်၊ ပိတ် တစ်ခုချင်းစီ၏ Top 3 စီကို ယူခြင်း
-    for key, target_list in [("Head", h_all), ("Mid", m_all), ("Tail", t_all)]:
-        for i in range(3):
-            if i < len(results[key]): target_list.append(results[key][i]["digit"])
-            else: target_list.append("-")
-            
-    # ၂၇ တွဲ Cartesian Product ထုတ်ယူခြင်း
-    all_combos = list(itertools.product(h_all, m_all, t_all))
-    pairs_list = ["".join(c) for c in all_combos if "-" not in c]
-    
-    # ၂၇ တွဲကို အုပ်စု ၃ စုသို့ အညီအမျှ (၉ တွဲစီ) ခွဲဝေခြင်း
-    chunk_size = max(1, len(pairs_list) // 3)
-    super_vip_chunk = pairs_list[:chunk_size]
-    vip_chunk = pairs_list[chunk_size:chunk_size*2]
-    backup_chunk = pairs_list[chunk_size*2:]
-    
-    sv_str = " . ".join(super_vip_chunk) if super_vip_chunk else "No Data"
-    v_str  = " . ".join(vip_chunk) if vip_chunk else "No Data"
-    b_str  = " . ".join(backup_chunk) if backup_chunk else "No Data"
-    
-    return sv_str, v_str, b_str
+# --- 6. 27 Pairs Grid Rank Combinations Engine (v8.5) ---
+def get_tier_combinations_v8_5(results, tier_index):
+    # သက်ဆိုင်ရာ Rank (Top 1, 2, 3) အလိုက် ရမှတ်တူသမျှဂဏန်းအားလုံးကို ဆွဲထုတ်ခြင်း
+    def extract_digits_by_tier(pos):
+        if tier_index >= len(results[pos]): return ["-"]
+        target_score = results[pos][tier_index]["score"]
+        return [r["digit"] for r in results[pos] if r["score"] == target_score]
 
-# --- 7. Main UI Module ---
+    h_list = extract_digits_by_tier("Head")
+    m_list = extract_digits_by_tier("Mid")
+    t_list = extract_digits_by_tier("Tail")
+    
+    # Cartesian Product ဖြင့် ပေါင်းစပ်နိုင်သမျှ ၃ လုံးတွဲအစုံလုံးထုတ်ယူခြင်း
+    combos = list(itertools.product(h_list, m_list, t_list))
+    final_pairs = ["".join(c) for c in combos if "-" not in c]
+    
+    return " . ".join(final_pairs) if final_pairs else "No Data"
+
+# --- 7. Main Core Module ---
 if "results" not in st.session_state: st.session_state.results = None
 if "h_cols" not in st.session_state: st.session_state.h_cols = None
 if "m_cols" not in st.session_state: st.session_state.m_cols = None
@@ -289,8 +282,11 @@ if file:
             results = st.session_state.results
             h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
             
-            # 🛠 [လော့ဂျစ်သစ်] ၂၇ တွဲ ဖြန့်ခင်း၍ ပ,ဒု,တ ခွဲခြားသတ်မှတ်ခြင်း
-            sv_pairs, v_pairs, b_pairs = get_all_27_pairs_formatted(results)
+            # 🛠 [လော့ဂျစ်မှန်ပြင်ဆင်ချက်] ၂၇ တွဲ ဖြန့်ခင်းမှုကို ထိပ်လယ်ပိတ်ရမှတ်အဆင့် (Tiers) အလိုက်ကွက်တိခွဲထုတ်ခြင်း
+            sv_pairs = get_tier_combinations_v8_5(results, 0)
+            v_pairs  = get_tier_combinations_v8_5(results, 1)
+            b_pairs  = get_tier_combinations_v8_5(results, 2)
+            
             copy_text = f"🥇 SUPER VIP ***\n{sv_pairs}\n\n🥈 VIP **\n{v_pairs}\n\n🥉 BACKUP *\n{b_pairs}"
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -340,11 +336,10 @@ if file:
         else:
             head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
             
-        # 🔑 Auto-Clear Logic Binded with Session Key
         paste_input = st.text_area("📥 PASTE CODE HERE", height=100, key="studio_paste_box")
         
         if paste_input.strip():
-            # 🛠 [လော့ဂျစ်အသစ်] "📸 PRINT" ခလုတ်နှိပ်သည်နှင့် ဖုန်းထဲသို့ Auto Download တန်းဆွဲမည့် JavaScript Trigger
+            # 🛠 [လော့ဂျစ်အသစ်] "📸 PRINT" ခလုတ်နှိပ်သည်နှင့် ဖုန်းထဲသို့ Auto Download တန်းဆွဲမည့် စနစ်
             if st.button("📸 PRINT", use_container_width=True):
                 try:
                     cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
@@ -364,7 +359,7 @@ if file:
                     
                     img_data = draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title)
                     
-                    # JavaScript Injection Trick: Base64 ပြောင်း၍ Browser ထံမှ File တိုက်ရိုက် Auto Download ဆွဲချခြင်း
+                    # JavaScript Auto Download Trigger
                     b64_img = base64.b64encode(img_data.getvalue()).decode()
                     js_script = f"""
                         <a id="auto_dl_link" href="data:image/jpeg;base64,{b64_img}" download="{file_naming}"></a>
@@ -373,9 +368,9 @@ if file:
                         </script>
                     """
                     st.components.v1.html(js_script, height=0)
-                    st.success(f"🎯 Blueprint `{file_naming}` အား အလိုအလျောက် ဒေါင်းလုဒ်ရယူပြီးပါပြီ။")
+                    st.success(f"🎯 Blueprint `{file_naming}` အား ဖုန်းထဲသို့ အလိုအလျောက် ဒေါင်းလုဒ်ရယူပြီးပါပြီ။")
                     
-                    # Rerender and Clear the Text Area instantly
+                    # Page refresh and Auto-Clear Input box instantly
                     st.rerun()
                     
                 except Exception as e:
