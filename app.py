@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
 import json
+import re
 
 # --- 1. Data Loading ---
 @st.cache_data
@@ -55,7 +56,7 @@ def build_super_groups_fast(df):
                 
     return super_groups, head_cols, mid_cols, tail_cols
 
-# --- 3. Stable Target Evaluator Engine ---
+# --- 3. Target Evaluator Engine ---
 def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_excel_row):
     target_r = target_excel_row - 2 
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
@@ -110,7 +111,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
 # --- 4. Advanced High-Speed Smart Crop Image Engine (Golden Title Edition) ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
-    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] # စိမ်း၊ နီ၊ ပြာ၊ လိမ္မော်
+    colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
     cell_map, all_r, all_y = {}, [], []
     
     def add_to_map(path, col_idx):
@@ -128,13 +129,10 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     cell_map[(target_r, target_y)] = colors[0]
     all_r.append(target_r); all_y.append(target_y)
 
-    # 🛠 [လော့ဂျစ်အသစ်] Advanced Smart Crop: အရောင်ရှိသောနှစ်များကိုသာ စစ်ထုတ်ပြီး ကြားကွက်လပ်ကို ညှပ်ထုတ်ခြင်း
     colored_years = sorted(list(set(all_y)))
     active_years = []
     
-    # Year 00 မှ Target Year (26) အထိ စစ်ဆေးမည်
     for y in range(len(pos_cols)):
-        # ၎င်းနှစ်သည် အရောင်ရှိသောနှစ်ဖြစ်လျှင် သို့မဟုတ် အရောင်ရှိသောနှစ်များနှင့် ဘေးချင်းကပ် ၂ နှစ်အတွင်း Buffer ရှိလျှင် ချန်မည်
         if any(abs(y - cy) <= 2 for cy in colored_years) or y == target_y:
             active_years.append(y)
             
@@ -144,19 +142,16 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 📐 ဇယားဘေးပတ်လည် သုံးဘက်နှင့် ခေါင်းစဉ်အပေါ်ကို .3 Margin ကွက်တိ Layout ချခြင်း
     fig, ax = plt.subplots(figsize=(max(plot_cols * 0.42, 5), max(plot_rows * 0.42, 4)))
     fig.subplots_adjust(left=0.12, right=0.88, top=0.85, bottom=0.15) 
     ax.axis('off')
     
-    # 🔒 ELEGANT BACKDROP WATERMARK
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=24, color='#b0b0b0',
              ha='center', va='center', alpha=0.12, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 FIXED GOLDEN TITLE (ခေါင်းစဉ်ကို ရွှေရောင်ပြောင်းပြီး Year Row နှင့် ကပ်လျက် Pad=10 သို့ လျှော့ချခြင်း)
     draw_number = target_excel_row - 13
     ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
-                 fontsize=13, pad=10, weight='bold', color='#D4AF37', ha='center') # #D4AF37 သည် Premium Metallic Gold ဖြစ်သည်
+                 fontsize=13, pad=10, weight='bold', color='#D4AF37', ha='center')
 
     table_data, table_colors = [], []
     for r in range(min_r, max_r):
@@ -180,7 +175,6 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     table.scale(1, 1.5)
     table.set_fontsize(9)
     
-    # 📐 Column Width ကို အခုထက်ပိုကျဉ်းပြီး စမတ်ကျကျဖြစ်အောင် 0.055 သို့ ညှိခြင်း
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
             cell.set_width(0.055)
@@ -195,27 +189,29 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 6. Streamlit Main Tab-Divided UI ---
+# --- 5. Streamlit Core Build ---
 st.set_page_config(layout="wide", page_title="Golden Cross 3D Pro")
-st.title("🎯 Golden Cross 3D - Ultimate Master Engine v5.0")
+st.title("🎯 Golden Cross 3D - Ultimate Master Engine v5.1")
 
-# Tab စနစ်ကို အချောသပ်ခွဲထုတ်ခြင်း
-tab1, tab2 = st.tabs(["🏆 Tab 1: Fast Text Analysis", "📸 Tab 2: Lightning Blueprint Generator"])
+# 🛠 [ပြင်ဆင်ချက်] File Uploader ကို တစ်ကမ္ဘာလုံးဆိုင်ရာ အပေါ်ဆုံးမှာ တစ်ခါတည်း ထားလိုက်ခြင်း
+file = st.file_uploader("Upload Excel (.xlsx) ဒေတာဖိုင်ကို ဤနေရာတွင် တစ်ကြိမ်သာ တင်ပေးပါ", type=["xlsx"])
 
-with tab1:
-    st.subheader("📊 1. စာသားရလဒ် အမြန်တွက်ချက်ခြင်း အပိုင်း")
-    file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"], key="tab1_uploader")
+if file:
+    df = load_data(file)
     
-    if file:
-        df = load_data(file)
-        target_row = st.number_input("Excel Row Number", value=25, min_value=2, key="tab1_row")
+    # Tab နှစ်ခု ခွဲသုံးခြင်း
+    tab1, tab2 = st.tabs(["🏆 Tab 1: Fast Text Analysis", "📸 Tab 2: Lightning Blueprint Generator"])
+    
+    with tab1:
+        st.subheader("📊 စာသားရလဒ် အမြန်တွက်ချက်ခြင်း")
+        target_row = st.number_input("Excel Row Number", value=25, min_value=2)
         
         if st.button("🚀 Master Filter စာသားထုတ်မည်", use_container_width=True):
-            with st.spinner("စာသားရလဒ်များကို စက္ကန့်ပိုင်းအတွင်း ဒုံးပျံလို တွက်ချက်နေပါသည်..."):
+            with st.spinner("တွက်ချက်နေပါသည်..."):
                 super_groups, head_cols, mid_cols, tail_cols = build_super_groups_fast(df)
                 results = evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_row)
                 
-                st.success("✅ တွက်ချက်မှု ပြီးမြောက်ပါပြီ။ အောက်က အုပ်စုကုဒ်ကို ကူးယူပြီး Tab 2 တွင် ပုံထုတ်ပါ။")
+                st.success("✅ ပြီးမြောက်ပါပြီ။ အောက်က အုပ်စုကုဒ်ကို ကူးယူပြီး Tab 2 တွင် ပုံထုတ်ပါ။")
                 
                 res_col1, res_col2, res_col3 = st.columns(3)
                 positions_ui = [("Head (ထိပ်)", "Head", res_col1), ("Mid (အလယ်)", "Mid", res_col2), ("Tail (ပိတ်)", "Tail", res_col3)]
@@ -226,12 +222,10 @@ with tab1:
                         if not results[key]: st.info("ထောက်ခံမှု မတွေ့ပါ။")
                         else:
                             for item in results[key]:
-                                with st.expander(f"ဂဏန်း [ {item['digit']} ] - ลမ်းကြောင်း {item['score']} ခု"):
+                                with st.expander(f"ဂဏန်း [ {item['digit']} ] - လမ်းကြောင်း {item['score']} ခု"):
                                     groups = [item["evidence"][i:i+3] for i in range(0, len(item["evidence"]), 3)]
                                     for idx, grp in enumerate(groups):
-                                        st.markdown(f"**📦 အုပ်စု {idx+1} (Copy Button ကို နှိပ်ပါ)**")
-                                        
-                                        # Tab 2 သို့ ယူသွားရန်အတွက် လမ်းကြောင်းဒေတာကို စနစ်တကျ JSON String ပြောင်းပေးခြင်း
+                                        st.markdown(f"**📦 အုပ်စု {idx+1} (Copy ယူရန်)**")
                                         package = {
                                             "target_row": target_row,
                                             "position_title": key,
@@ -240,28 +234,23 @@ with tab1:
                                             "target_path": grp[0]['target_path'],
                                             "history_paths": grp[0]['history_paths']
                                         }
-                                        package_str = json.dumps(package)
-                                        
-                                        # Copy Button အဖြစ် သုံးနိုင်ရန် st.code ဖြင့် ထုတ်ပေးခြင်း
-                                        st.code(package_str, language="json")
+                                        st.code(json.dumps(package), language="json")
                                         st.markdown("---")
 
-with tab2:
-    st.subheader("📸 2. တစ်စက္ကန့်အတွင်း ပုံတိုက်ရိုက်ထုတ်ယူခြင်း အပိုင်း")
-    file_t2 = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"], key="tab2_uploader")
-    
-    if file_t2:
-        df_t2 = load_data(file_t2)
-        head_cols, mid_cols, tail_cols = build_super_groups_fast(df_t2)[1:]
+    with tab2:
+        st.subheader("📸 တစ်စက္ကန့်အတွင်း ပုံတိုက်ရိုက်ထုတ်ယူခြင်း")
+        head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
         
-        # Tab 1 မှ ကူးလာသော စာသားကို Paste ချမည့် နေရာ
-        paste_input = st.text_area("📋 Tab 1 မှ မိတ္တူကူးလာသော အုပ်စုစာသား (Group Code) ကို ဒီနေရာမှာ Paste ချပါ:", height=120)
+        paste_input = st.text_area("📋 Tab 1 မှ မိတ္တူကူးလာသော အုပ်စုစာသားကို Paste ချပါ:", height=120)
         
         if paste_input.strip():
             try:
-                pkg = json.loads(paste_input.strip())
+                # 🛠 [ပြင်ဆင်ချက်] ဖုန်းမှာ ကူးရင် ပါလာတတ်တဲ့ "> " သင်္ကေတ အပိုများကို အလိုအလျောက် သန့်စင်ပေးခြင်း
+                cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
+                cleaned_input = cleaned_input.replace('\n', '').strip()
                 
-                # အချက်အလက်များ ပြန်လည်ထုတ်ယူခြင်း
+                pkg = json.loads(cleaned_input)
+                
                 t_row = pkg["target_row"]
                 pos_title = pkg["position_title"]
                 g_digit = pkg["guess_digit"]
@@ -273,16 +262,15 @@ with tab2:
                 draw_num = t_row - 13
                 file_naming = f"{draw_num}-2026_{pos_title}_Digit_{g_digit}_Group_{g_idx}.jpg"
                 
-                st.info(f"✅ အုပ်စုဖတ်ရှုမှု အောင်မြင်သည်- {pos_title} Digit {g_digit} (အုပ်စု {g_idx})")
+                st.success(f"🎯 အုပ်စုဖတ်ရှုမှု အောင်မြင်သည်- {pos_title} Digit {g_digit} (အုပ်စု {g_idx})")
                 
-                # Lightning Direct Download Button
                 st.download_button(
-                    label=f"📸 {pos_title} Digit {g_digit} (အုပ်စု-{g_idx}) ပုံကို တိုက်ရိုက်ဒေါင်းလုဒ်ဆွဲမည်",
-                    data=draw_matrix_path_clean(df_t2, t_row, current_cols, t_path, h_paths, g_digit, pos_title),
+                    label=f"📸 {pos_title} Digit {g_digit} (အုပ်စု-{g_idx}) ပုံကို ဒေါင်းလုဒ်ဆွဲမည်",
+                    data=draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title),
                     file_name=file_naming,
                     mime="image/jpeg",
                     use_container_width=True
                 )
                 
             except Exception as e:
-                st.error("❌ စာသားပုံစံ မမှန်ကန်ပါ။ Tab 1 မှ ကုဒ်တစ်ခုလုံးကို ကွက်တိ ကူးယူလာခဲ့ပါ။")
+                st.error("❌ စာသားပုံစံ မမှန်ကန်ပါ။ Tab 1 မှ ကုဒ်ကွက်တိကို အစအဆုံး ပြန်ကူးပေးပါ။")
