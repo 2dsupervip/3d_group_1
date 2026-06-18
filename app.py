@@ -45,7 +45,7 @@ def load_data(file_path):
     df = pd.read_excel(file_path, header=None, engine='openpyxl')
     return df.iloc[1:].reset_index(drop=True)
 
-# --- 3. History Core Engine ---
+# --- 3. History Core Engine with Neighborhood Block Filter ---
 @st.cache_data
 def build_super_groups_fast(df):
     head_cols = [c for c in range(1, len(df.columns)) if (c - 1) % 3 == 0]
@@ -59,6 +59,9 @@ def build_super_groups_fast(df):
     
     for pos_name, cols in positions:
         history_counts = {}
+        # ဒေတာ Block ကြီးတစ်ခုလုံး ပုံတူထပ်နေခြင်းကို စစ်ထုတ်ရန် Signature Registry
+        seen_neighborhood_blocks = {}
+        
         for y_idx in range(max_y):
             for r in range(max_rows):
                 for y_step in range(5):
@@ -66,22 +69,42 @@ def build_super_groups_fast(df):
                         if y_step == 0 and r_step == 0: continue
                         
                         digits, path_str, valid = [], [], True
+                        neighborhood_signature = [] # 🛠 ပတ်ဝန်းကျင် ဝဲ/ယာ ဒေတာစုစည်းမှု
+                        
                         for i in range(4):
                             curr_r = r + i * r_step
                             curr_y = y_idx + i * y_step
                             if curr_r < 0 or curr_r >= max_rows or curr_y < 0 or curr_y >= max_y:
                                 valid = False; break
-                            val = str(df.iloc[curr_r, cols[curr_y]]).strip()
+                            
+                            c_idx = cols[curr_y]
+                            val = str(df.iloc[curr_r, c_idx]).strip()
                             if val.lower() in ['x', 'nan', '']:
                                 valid = False; break
                             if val.endswith('.0'): val = val[:-2]
+                            
+                            # 🛠 [လော့ဂျစ်အသစ်] လက်ရှိဆဲလ်၏ ဝဲဘက်နှင့် ညာဘက် ဂဏန်းများကိုပါ ဆွဲထုတ်၍ ဒေတာတုံးတု စစ်ဆေးရန်
+                            left_val = str(df.iloc[curr_r, c_idx - 1]).strip() if c_idx - 1 >= 0 else ""
+                            right_val = str(df.iloc[curr_r, c_idx + 1]).strip() if c_idx + 1 < len(df.columns) else ""
+                            neighborhood_signature.append((val, left_val, right_val))
+                            
                             digits.append(val)
                             path_str.append(f"R{curr_r+2}_Y{curr_y}")
                             
                         if valid:
                             dtup = tuple(digits)
+                            block_sig = tuple(neighborhood_signature)
+                            path_joined = "->".join(path_str)
+                            
+                            # 🛠 [လော့ဂျစ်အသစ်] ဂဏန်းချင်းတူရုံတင်မကဘဲ ဘေးပတ်ဝန်းကျင်ပါ ပုံတူထပ်နေလျှင် လုံးဝလက်မခံဘဲ ပယ်ဖျက်ပစ်ခြင်း
+                            if block_sig in seen_neighborhood_blocks:
+                                # ဒေတာတုံးတူသော်လည်း နေရာမတူပါက ဒုတိယတစ်ခုကို Registry ထဲထည့်သော်လည်း ရမှတ်ထဲမထည့်ပါ
+                                continue
+                            
+                            seen_neighborhood_blocks[block_sig] = path_joined
+                            
                             if dtup not in history_counts: history_counts[dtup] = set()
-                            history_counts[dtup].add("->".join(path_str))
+                            history_counts[dtup].add(path_joined)
                             
         for dtup, paths in history_counts.items():
             if len(paths) >= 3: 
@@ -174,7 +197,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 📐 Cell Width ပုံသေ Lock ချ၍ ဇယားပုံမပျက်အောင် ကာကွယ်ခြင်း
+    # 📐 Cell Width ပုံသေ Lock ချ၍ ဖုန်းမျက်နှာပြင်ပေါ်တွင် စာလုံးကြီးကြီးပြသနိုင်ရန် ညှိခြင်း
     fixed_cell_width = 0.55
     fig_w = max(6, plot_cols * fixed_cell_width)
     fig_h = max(5, plot_rows * 0.42)
@@ -230,9 +253,9 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 6. 27 Pairs Grid Rank Combinations Engine (v8.6 Correct Fix) ---
-def get_tier_combinations_v8_6(results, tier_index):
-    # 🛠 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ရမှတ်တူညီသော ထိပ်လယ်ပိတ်ဂဏန်းအားလုံးကို အဆင့်အလိုက်စနစ်တကျစုစည်းခြင်း
+# --- 6. 27 Pairs Grid Rank Combinations Engine ---
+def get_tier_combinations_v9_0(results, tier_index):
+    # ရမှတ်တူညီသော ထိပ်လယ်ပိတ်ဂဏန်းအားလုံးကို အဆင့်အလိုက်စနစ်တကျစုစည်းခြင်း
     def extract_digits_by_tier(pos):
         if tier_index >= len(results[pos]): return ["-"]
         target_score = results[pos][tier_index]["score"]
@@ -282,10 +305,10 @@ if file:
             results = st.session_state.results
             h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
             
-            # ၂၇ တွဲ ဖြန့်ခင်းမှုစနစ်သစ် (v8.6 Fixed Tiers)
-            sv_pairs = get_tier_combinations_v8_6(results, 0)
-            v_pairs  = get_tier_combinations_v8_6(results, 1)
-            b_pairs  = get_tier_combinations_v8_6(results, 2)
+            # ၂၇ တွဲ ဖြန့်ခင်းမှုစနစ်သစ် (v9.0 Strict Clean Tiers)
+            sv_pairs = get_tier_combinations_v9_0(results, 0)
+            v_pairs  = get_tier_combinations_v9_0(results, 1)
+            b_pairs  = get_tier_combinations_v9_0(results, 2)
             
             copy_text = f"🥇 SUPER VIP ***\n{sv_pairs}\n\n🥈 VIP **\n{v_pairs}\n\n🥉 BACKUP *\n{b_pairs}"
             
@@ -340,7 +363,7 @@ if file:
         paste_input = st.text_area("📥 PASTE CODE HERE", height=100, key="studio_paste_box")
         
         if paste_input.strip():
-            # 🛠 [လော့ဂျစ်အသစ်] Auto Download + Auto Clear Box System (v8.6 Fixed)
+            # 🛠 Auto Download + Auto Clear Box System (v9.0 Fixed)
             if st.button("📸 PRINT", use_container_width=True):
                 try:
                     cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
@@ -371,7 +394,7 @@ if file:
                     st.components.v1.html(js_script, height=0)
                     st.success(f"🎯 Blueprint `{file_naming}` အား ဖုန်းထဲသို့ အလိုအလျောက် ဒေါင်းလုဒ်ရယူပြီးပါပြီ။")
                     
-                    # 🔒 [ပြင်ဆင်ချက်] Box စာသားကို အနောက်ကွယ်မှ ချက်ချင်းရှင်းလင်းပစ်ပြီးမှ Refresh ခေါ်ခြင်း
+                    # 🔒 Box စာသားကို ရှင်းလင်းပစ်ပြီးမှ Refresh ခေါ်ခြင်း
                     st.session_state.studio_paste_box = ""
                     st.rerun()
                     
