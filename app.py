@@ -138,7 +138,7 @@ def evaluate_target(df, super_groups, head_cols, mid_cols, tail_cols, target_exc
         results[pos_name] = sorted(pos_results, key=lambda x: x["score"], reverse=True)
     return results
 
-# --- 5. Ultimate Fixed Image Engine (No Overlap, Standard Cell Sizing) ---
+# --- 5. High-Resolution Fixed Cell Width Image Engine ---
 def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_paths, guess_digit, position_title):
     plt.clf() 
     colors = ["#99ff99", "#ff99c2", "#99e6ff", "#ffd1b3"] 
@@ -162,7 +162,6 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     def get_actual_year_label(y_idx):
         return 97 + y_idx if (97 + y_idx) < 100 else (y_idx - 3)
 
-    # 🛠 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ကလင်ဒါနှစ်အလိုက် နေရာမှန်ကွက်တိ ဖြတ်တောက်ခြင်း
     colored_actual_years = set(get_actual_year_label(y) for y in all_y)
     active_years = []
     for y in range(len(pos_cols)):
@@ -175,7 +174,7 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plot_rows = max_r - min_r
     plot_cols = len(active_years)
 
-    # 📐 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ကော်လံအရေအတွက်နည်းသွားသော်လည်း ဇယားပုံမပျက်စေရန် Cell Width ပုံသေသတ်မှတ်ခြင်း
+    # 📐 Cell Width ပုံသေ Lock ချ၍ ဇယားပုံမပျက်အောင် ကာကွယ်ခြင်း
     fixed_cell_width = 0.55
     fig_w = max(6, plot_cols * fixed_cell_width)
     fig_h = max(5, plot_rows * 0.42)
@@ -184,11 +183,11 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.1) 
     ax.axis('off')
     
-    # 🔒 PREMIUM WATERMARK
+    # Watermark
     fig.text(0.5, 0.5, 'GOLDEN CROSS 3D  •  PREMIUM BLUEPRINT', fontsize=22, color='#b0b0b0',
              ha='center', va='center', alpha=0.11, rotation=25, zorder=0, fontweight='bold')
     
-    # 🌟 FIXED TITLE (ဇယားခေါင်းစဉ်အား Year Label မျဉ်းပေါ်တိုက်ရိုက်ကပ်လျက် တပ်ဆင်ခြင်း)
+    # 🌟 Title Layout Fix (ခေါင်းစဉ်စာသားအား Year မျဉ်းနှင့် အနီးကပ်ဆုံးညှိသည်)
     draw_number = target_excel_row - 13
     ax.set_title(f"🌟 THE GOLDEN CROSS 3D ({draw_number}/2026) {position_title} Digit {guess_digit}", 
                  fontsize=13, pad=12, weight='bold', color='#D4AF37', ha='center')
@@ -213,14 +212,15 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
                      rowLabels=row_labels, colLabels=col_labels, 
                      loc='center', cellLoc='center')
     table.scale(1, 1.5)
-    table.set_fontsize(10)
+    table.auto_set_font_size(False)
     
-    # ဆဲလ်တစ်ခုချင်းစီ၏ အတိုင်းအတာကို ပုံသေ Lock ခတ်ခြင်း
+    # ဆဲလ်တိုင်းကို Font Size 11 အသေ Lock ပိတ်ခြင်း
     for (row, col), cell in table.get_celld().items():
         if col >= 0: 
             cell.set_width(fixed_cell_width * 0.12)
             cell.set_linewidth(0.4)
             cell.set_edgecolor('#e0e0e0') 
+            cell.get_text().set_fontsize(10)
         if (row-1, col) in [(r - min_r, active_years.index(y)) for (r, y) in cell_map.keys() if y in active_years]:
             cell.get_text().set_fontsize(12)
             cell.get_text().set_weight('bold')
@@ -230,9 +230,9 @@ def draw_matrix_path_clean(df, target_excel_row, pos_cols, target_path, hist_pat
     plt.close(fig)
     return buf
 
-# --- 6. 27 Pairs Grid Rank Combinations Engine (v8.5) ---
-def get_tier_combinations_v8_5(results, tier_index):
-    # သက်ဆိုင်ရာ Rank (Top 1, 2, 3) အလိုက် ရမှတ်တူသမျှဂဏန်းအားလုံးကို ဆွဲထုတ်ခြင်း
+# --- 6. 27 Pairs Grid Rank Combinations Engine (v8.6 Correct Fix) ---
+def get_tier_combinations_v8_6(results, tier_index):
+    # 🛠 [လော့ဂျစ်အမှန်ပြင်ဆင်ချက်] ရမှတ်တူညီသော ထိပ်လယ်ပိတ်ဂဏန်းအားလုံးကို အဆင့်အလိုက်စနစ်တကျစုစည်းခြင်း
     def extract_digits_by_tier(pos):
         if tier_index >= len(results[pos]): return ["-"]
         target_score = results[pos][tier_index]["score"]
@@ -242,13 +242,13 @@ def get_tier_combinations_v8_5(results, tier_index):
     m_list = extract_digits_by_tier("Mid")
     t_list = extract_digits_by_tier("Tail")
     
-    # Cartesian Product ဖြင့် ပေါင်းစပ်နိုင်သမျှ ၃ လုံးတွဲအစုံလုံးထုတ်ယူခြင်း
+    # Cartesian Product ဖြင့် ၂၇ တွဲကို အဆင့်အလိုက် Dynamic ဖြန့်ခင်းခြင်း
     combos = list(itertools.product(h_list, m_list, t_list))
     final_pairs = ["".join(c) for c in combos if "-" not in c]
     
     return " . ".join(final_pairs) if final_pairs else "No Data"
 
-# --- 7. Main Core Module ---
+# --- 7. Session State Main Logic ---
 if "results" not in st.session_state: st.session_state.results = None
 if "h_cols" not in st.session_state: st.session_state.h_cols = None
 if "m_cols" not in st.session_state: st.session_state.m_cols = None
@@ -282,10 +282,10 @@ if file:
             results = st.session_state.results
             h_cols, m_cols, t_cols = st.session_state.h_cols, st.session_state.m_cols, st.session_state.t_cols
             
-            # 🛠 [လော့ဂျစ်မှန်ပြင်ဆင်ချက်] ၂၇ တွဲ ဖြန့်ခင်းမှုကို ထိပ်လယ်ပိတ်ရမှတ်အဆင့် (Tiers) အလိုက်ကွက်တိခွဲထုတ်ခြင်း
-            sv_pairs = get_tier_combinations_v8_5(results, 0)
-            v_pairs  = get_tier_combinations_v8_5(results, 1)
-            b_pairs  = get_tier_combinations_v8_5(results, 2)
+            # ၂၇ တွဲ ဖြန့်ခင်းမှုစနစ်သစ် (v8.6 Fixed Tiers)
+            sv_pairs = get_tier_combinations_v8_6(results, 0)
+            v_pairs  = get_tier_combinations_v8_6(results, 1)
+            b_pairs  = get_tier_combinations_v8_6(results, 2)
             
             copy_text = f"🥇 SUPER VIP ***\n{sv_pairs}\n\n🥈 VIP **\n{v_pairs}\n\n🥉 BACKUP *\n{b_pairs}"
             
@@ -336,10 +336,11 @@ if file:
         else:
             head_cols, mid_cols, tail_cols = build_super_groups_fast(df)[1:]
             
+        # Paste Box Input area
         paste_input = st.text_area("📥 PASTE CODE HERE", height=100, key="studio_paste_box")
         
         if paste_input.strip():
-            # 🛠 [လော့ဂျစ်အသစ်] "📸 PRINT" ခလုတ်နှိပ်သည်နှင့် ဖုန်းထဲသို့ Auto Download တန်းဆွဲမည့် စနစ်
+            # 🛠 [လော့ဂျစ်အသစ်] Auto Download + Auto Clear Box System (v8.6 Fixed)
             if st.button("📸 PRINT", use_container_width=True):
                 try:
                     cleaned_input = re.sub(r'^>\s*', '', paste_input.strip(), flags=re.MULTILINE)
@@ -359,7 +360,7 @@ if file:
                     
                     img_data = draw_matrix_path_clean(df, t_row, current_cols, t_path, h_paths, g_digit, pos_title)
                     
-                    # JavaScript Auto Download Trigger
+                    # JS Injection for Instant Downloader
                     b64_img = base64.b64encode(img_data.getvalue()).decode()
                     js_script = f"""
                         <a id="auto_dl_link" href="data:image/jpeg;base64,{b64_img}" download="{file_naming}"></a>
@@ -370,7 +371,8 @@ if file:
                     st.components.v1.html(js_script, height=0)
                     st.success(f"🎯 Blueprint `{file_naming}` အား ဖုန်းထဲသို့ အလိုအလျောက် ဒေါင်းလုဒ်ရယူပြီးပါပြီ။")
                     
-                    # Page refresh and Auto-Clear Input box instantly
+                    # 🔒 [ပြင်ဆင်ချက်] Box စာသားကို အနောက်ကွယ်မှ ချက်ချင်းရှင်းလင်းပစ်ပြီးမှ Refresh ခေါ်ခြင်း
+                    st.session_state.studio_paste_box = ""
                     st.rerun()
                     
                 except Exception as e:
