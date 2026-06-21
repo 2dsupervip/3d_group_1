@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 
 # --- 1. Streamlit Page Configuration & Dark Theme UI ---
-st.set_page_config(layout="wide", page_title="Golden Cross v13.0 Core", page_icon="🎯")
+st.set_page_config(layout="wide", page_title="Golden Cross v14.0 Core", page_icon="🎯")
 
 st.markdown("""
     <style>
@@ -28,19 +28,24 @@ def load_calendar_data(file_path):
 
 # --- 3. Virtual Matrix Engine (Generates 70,000+ Paths inside Python Memory) ---
 def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
-    years_row = df.iloc[0].astype(str).tolist()
+    # Header Row ကို Object အတိုင်း အရင်ယူထားခြင်း (Error ကာကွယ်ရန်)
+    raw_years_row = df.iloc[0].tolist()
     
     # ရွေးချယ်ထားသော Year ၏ Column Index ကို ရှာဖွေခြင်း
     target_col_base = -1
-    for c_idx, y_val in enumerate(years_row):
-        if not y_val or y_val.lower() == 'nan' or y_val.strip() == '':
+    for c_idx, raw_val in enumerate(raw_years_row):
+        # 🛠 [AttributeError Full Patch]: ဒေတာအမျိုးအစားမရွေး str() ပြောင်းလဲပြီးမှ Safe Check စစ်ထုတ်ခြင်း
+        y_val = str(raw_val).strip()
+        
+        if not y_val or y_val.lower() == 'nan' or y_val == '':
             continue
+            
         if str(target_year) in y_val or y_val == str(target_year)[-2:]:
             target_col_base = c_idx
             break
             
     if target_col_base == -1:
-        # ၂၀၂၆ ရှာမတွေ့ပါက ကလင်ဒါ၏ နောက်ဆုံးအပိတ်ကော်လံ (လက်ရှိအရှိဆုံးနှစ်) ကို Dynamic ယူခြင်း
+        # ၂၀၂၆ ကော်လံ ရှာမတွေ့ပါက ကလင်ဒါ၏ နောက်ဆုံးအပိတ်ကော်လံကို ယူခြင်း
         target_col_base = len(df.columns) - 4 
 
     # Layout Offset: Header ၂ ခုစာ ကျော်ပြီး Draw 1 သည် Row index 2 မှ စတင်သည်
@@ -57,12 +62,12 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
     max_rows = len(df)
     max_y_idx = len(head_cols) - 1
     
-    # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများကို Memory ထဲတွင် Virtual ပေါင်းစပ် Loops ပတ်ခြင်း (y=0 မှ y=4 အထိ)
+    # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများကို Memory ထဲတွင် Virtual ပေါင်းစပ် Loops ပတ်ခြင်း
     for pos_name, cols in positions:
         for y_idx in range(max_y_idx):
             for r_idx in range(2, max_rows):
                 
-                # ⚠️ [Strict Time-Capsule Control]: ထွက်ပြီးသားအကြိမ်များ၏ လမ်းကြောင်းများကို Duplicate အဖြစ် ပယ်ဖျက်ခြင်း
+                # ⚠️ [Strict Time-Capsule Control]: ထွက်ပြီးသားအကြိမ်များ၏ လမ်းကြောင်းများကို ပယ်ဖျက်ခြင်း
                 if is_backtest and r_idx >= target_row_idx:
                     continue
                 elif not is_backtest and r_idx >= len(df) - 1: 
@@ -93,7 +98,9 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
                             
                             digits.append(val)
                             
-                            virtual_orig_year = years_row[c_idx] if years_row[c_idx] != "nan" else "Unknown"
+                            # Safe Column Label Fetching
+                            raw_lbl = raw_years_row[c_idx]
+                            virtual_orig_year = str(raw_lbl).strip() if (str(raw_lbl).lower() != 'nan' and pd.notna(raw_lbl)) else "Unknown"
                             virtual_row_no = curr_r - 1
                             path_identifiers.append(f"{virtual_orig_year}_{virtual_row_no}")
                             
@@ -180,10 +187,11 @@ def generate_27_pairs(results, mode_type, min_c=None, max_c=None):
 # --- 5. Real Result Extractor Engine ---
 def get_actual_result_string(df, target_year, target_draw):
     try:
-        years_row = df.iloc[0].astype(str).tolist()
+        raw_years_row = df.iloc[0].tolist()
         target_col_base = -1
-        for c_idx, y_val in enumerate(years_row):
-            if not y_val or y_val.lower() == 'nan' or y_val.strip() == '': continue
+        for c_idx, raw_val in enumerate(raw_years_row):
+            y_val = str(raw_val).strip()
+            if not y_val or y_val.lower() == 'nan' or y_val == '': continue
             if str(target_year) in y_val or y_val == str(target_year)[-2:]:
                 target_col_base = c_idx
                 break
@@ -199,7 +207,7 @@ def get_actual_result_string(df, target_year, target_draw):
 
 # --- 6. User Interface Control Panel ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37;'>⚙️ VIRTUAL ENGINE v13.0</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#D4AF37;'>⚙️ VIRTUAL ENGINE v14.0</h2>", unsafe_allow_html=True)
     file = st.file_uploader("Upload Calendar File (2025_3D.xlsx)", type=["xlsx"])
     st.markdown("---")
     
@@ -208,7 +216,6 @@ with st.sidebar:
         app_mode = st.radio("Working Mode:", ["Live Mode 🟢", "Deep Batch Backtest 🟡"])
         
         st.markdown("### 🔢 INPUT BOXES")
-        # 🛠 ၂၀၂၆ အတွက် ကွက်တိ Default တန်းဝင်နေစေရန် ပြင်ဆင်ချက်
         input_year = st.number_input("Target Year (ခုနှစ်):", value=2026, min_value=1996, max_value=2030)
         input_draw = st.number_input("Target Draw (အကြိမ်ရေ):", value=1, min_value=1, max_value=50)
         
@@ -268,7 +275,7 @@ if file:
         if st.button("🚀 Run Live Master Filter Analytics", use_container_width=True):
             with st.spinner("Processing 70,000+ Virtual Paths Syncing..."):
                 st.session_state.v12_results = analyze_virtual_matrix(df_calendar, input_year, input_draw, is_backtest=False)
-                st.success("✅ ၂၀၂၆ အတွက် ၇၀,၀၀0 ကျော် လမ်းကြောင်းများအားလုံး Virtual ပေါင်းစပ်တွက်ချက်မှု အောင်မြင်ပါသည်။")
+                st.success("✅ ၂၀၂၆ အတွက် ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများအားလုံး Virtual ပေါင်းစပ်တွက်ချက်မှု အောင်မြင်ပါသည်။")
                 
         if "v12_results" in st.session_state and st.session_state.v12_results is not None:
             res = st.session_state.v12_results
