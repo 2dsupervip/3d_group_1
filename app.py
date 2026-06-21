@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import itertools
 
-# --- 1. Streamlit Page Configuration & Theme ---
-st.set_page_config(layout="wide", page_title="Golden Cross v12.0 Virtual Core", page_icon="🎯")
+# --- 1. Streamlit Page Configuration & Dark Theme UI ---
+st.set_page_config(layout="wide", page_title="Golden Cross v13.0 Core", page_icon="🎯")
 
 st.markdown("""
     <style>
@@ -23,34 +23,27 @@ st.markdown("""
 # --- 2. Data Loading Engine (Reads Single Calendar Sheet) ---
 @st.cache_data
 def load_calendar_data(file_path):
-    # Header မပါဘဲ ဒေတာသက်သက်ကို ဆွဲဖတ်ခြင်း
     df = pd.read_excel(file_path, header=None, engine='openpyxl')
     return df
 
 # --- 3. Virtual Matrix Engine (Generates 70,000+ Paths inside Python Memory) ---
 def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
-    """
-    df: Calendar DataFrame
-    target_year: User ရိုက်ထည့်လိုက်သော မူလနှစ် (eg. 2025)
-    target_draw: User ရိုက်ထည့်လိုက်သော အကြိမ်ရေ / Round No (eg. 12)
-    """
-    # Excel Matrix Header Structure ပိုင်းခြားခြင်း
-    # Column 0 = Index/Sr, နောက်ပိုင်း Column များသည် 3 စီတွဲ (H, M, L)
     years_row = df.iloc[0].astype(str).tolist()
     
     # ရွေးချယ်ထားသော Year ၏ Column Index ကို ရှာဖွေခြင်း
     target_col_base = -1
     for c_idx, y_val in enumerate(years_row):
+        if not y_val or y_val.lower() == 'nan' or y_val.strip() == '':
+            continue
         if str(target_year) in y_val or y_val == str(target_year)[-2:]:
             target_col_base = c_idx
             break
             
     if target_col_base == -1:
-        # ရှာမတွေ့ပါက လက်ရှိ နောက်ဆုံးကော်လံကို Default ယူခြင်း
+        # ၂၀၂၆ ရှာမတွေ့ပါက ကလင်ဒါ၏ နောက်ဆုံးအပိတ်ကော်လံ (လက်ရှိအရှိဆုံးနှစ်) ကို Dynamic ယူခြင်း
         target_col_base = len(df.columns) - 4 
 
-    # Layout Offset အရ Target Row Index အား ကွက်တိရှာဖွေခြင်း
-    # (ဥပမာ- ထိပ်ဆုံး Row ၂ ခုသည် Header များ ဖြစ်ပြီး Draw 1 သည် Row index 2 မှ စတင်သည်)
+    # Layout Offset: Header ၂ ခုစာ ကျော်ပြီး Draw 1 သည် Row index 2 မှ စတင်သည်
     target_row_idx = 1 + target_draw 
     
     head_cols = [c for c in range(1, len(df.columns)) if (c - 1) % 3 == 0]
@@ -59,26 +52,22 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
     
     raw_paths_compiled = {"Head": {}, "Mid": {}, "Tail": {}}
-    
-    # 🛠 [Time-Capsule & Deduplication Registry]
-    # Backtest စစ်လျှင် Target ထက် ကျော်လွန်သော အနာဂတ်ပွဲစဉ် လမ်းကြောင်းများကို ဒေတာပွားအဖြစ် ညှပ်ပိတ်ရန်
     seen_composite_keys = set()
     
     max_rows = len(df)
     max_y_idx = len(head_cols) - 1
     
-    # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများကို Python Memory ထဲတွင် Virtual ပေါင်းစပ်Loops ပတ်ခြင်း (y=0 မှ y=4 အထိ)
+    # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများကို Memory ထဲတွင် Virtual ပေါင်းစပ် Loops ပတ်ခြင်း (y=0 မှ y=4 အထိ)
     for pos_name, cols in positions:
         for y_idx in range(max_y_idx):
             for r_idx in range(2, max_rows):
                 
-                # ⚠️ [Strict Time-Capsule Control]: Target Row ၏ အောက်ခြေရှိ အနာဂတ်ဒေတာများကို ပယ်ဖျက်ခြင်း
+                # ⚠️ [Strict Time-Capsule Control]: ထွက်ပြီးသားအကြိမ်များ၏ လမ်းကြောင်းများကို Duplicate အဖြစ် ပယ်ဖျက်ခြင်း
                 if is_backtest and r_idx >= target_row_idx:
                     continue
-                elif not is_backtest and r_idx >= len(df) - 1: # Live Mode တွင် လက်ရှိပွဲအောက်ခြေကို ပိတ်ရန်
+                elif not is_backtest and r_idx >= len(df) - 1: 
                     continue
 
-                # Virtual Sheets (y0 မှ y4) ရွေ့လျားမှု Permutations များ ဖန်တီးခြင်း
                 for y_step in range(5): 
                     for r_step in range(-4, 5):
                         if y_step == 0 and r_step == 0: continue
@@ -86,7 +75,6 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
                         digits, valid = [], True
                         path_identifiers = []
                         
-                        # ၄ လုံးတွဲ Sequence Core Matrix Paths စစ်ဆေးခြင်း
                         for i in range(4):
                             curr_r = r_idx + i * r_step
                             curr_y = y_idx + i * y_step
@@ -94,7 +82,6 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
                             if curr_r < 2 or curr_r >= max_rows or curr_y < 0 or curr_y >= max_y_idx:
                                 valid = False; break
                                 
-                            # Backtest Leakage ထပ်မံကာကွယ်ရန် Boundary စစ်ဆေးခြင်း
                             if is_backtest and curr_r >= target_row_idx:
                                 valid = False; break
                                 
@@ -106,13 +93,12 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
                             
                             digits.append(val)
                             
-                            # Auto-Generate Composite Keys (မူလနှစ် + Row No အား ကုဒ်ထဲတွင် တွက်ချက်ခြင်း)
                             virtual_orig_year = years_row[c_idx] if years_row[c_idx] != "nan" else "Unknown"
                             virtual_row_no = curr_r - 1
                             path_identifiers.append(f"{virtual_orig_year}_{virtual_row_no}")
                             
                         if valid:
-                            # 🛠 [Index-Based Deduplication] မူလနှစ်နှင့် Row တူနေပါက လမ်းကြောင်းတုအဖြစ် ပယ်ထုတ်ခြင်း
+                            # 🛠 [Index-Based Deduplication]
                             composite_dna = f"{pos_name}_{y_step}_{r_step}_" + "-".join(path_identifiers)
                             if composite_dna in seen_composite_keys:
                                 continue
@@ -130,7 +116,6 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
     for pos_name, cols in positions:
         prefixes_found = []
         
-        # Target prefix (၃ လုံးတွဲ) ရှာဖွေခြင်း
         for y_step in range(5):
             for r_step in range(-4, 5):
                 if y_step == 0 and r_step == 0: continue
@@ -153,7 +138,6 @@ def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
                 if valid:
                     prefixes_found.append(tuple(digits))
                     
-        # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းစစ်စစ်များမှ Vote အမှတ်အများဆုံး ဂဏန်းအား ရှာဖွေခြင်း
         for guess in range(10):
             guess_str = str(guess)
             match_count = 0
@@ -199,10 +183,11 @@ def get_actual_result_string(df, target_year, target_draw):
         years_row = df.iloc[0].astype(str).tolist()
         target_col_base = -1
         for c_idx, y_val in enumerate(years_row):
+            if not y_val or y_val.lower() == 'nan' or y_val.strip() == '': continue
             if str(target_year) in y_val or y_val == str(target_year)[-2:]:
                 target_col_base = c_idx
                 break
-        if target_col_base == -1: return "N/A"
+        if target_col_base == -1: target_col_base = len(df.columns) - 4
         
         target_row_idx = 1 + target_draw
         h_val = str(df.iloc[target_row_idx, target_col_base]).strip().replace('.0','')
@@ -214,7 +199,7 @@ def get_actual_result_string(df, target_year, target_draw):
 
 # --- 6. User Interface Control Panel ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37;'>⚙️ VIRTUAL MATRIX CORE v12.0</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#D4AF37;'>⚙️ VIRTUAL ENGINE v13.0</h2>", unsafe_allow_html=True)
     file = st.file_uploader("Upload Calendar File (2025_3D.xlsx)", type=["xlsx"])
     st.markdown("---")
     
@@ -223,9 +208,9 @@ with st.sidebar:
         app_mode = st.radio("Working Mode:", ["Live Mode 🟢", "Deep Batch Backtest 🟡"])
         
         st.markdown("### 🔢 INPUT BOXES")
-        # 🛠 Slider အစား ဖုန်းဖြင့် ရိုက်ထည့်ရလွယ်ကူသော Box များ ပြောင်းလဲခြင်း
-        input_year = st.number_input("Target Year (ခုနှစ်):", value=2025, min_value=1996, max_value=2030)
-        input_draw = st.number_input("Target Draw (အကြိမ်ရေ):", value=12, min_value=1, max_value=50)
+        # 🛠 ၂၀၂၆ အတွက် ကွက်တိ Default တန်းဝင်နေစေရန် ပြင်ဆင်ချက်
+        input_year = st.number_input("Target Year (ခုနှစ်):", value=2026, min_value=1996, max_value=2030)
+        input_draw = st.number_input("Target Draw (အကြိမ်ရေ):", value=1, min_value=1, max_value=50)
         
         if app_mode == "Deep Batch Backtest 🟡":
             backtest_rounds = st.number_input("Backtest Rounds Count (eg. 24 ကြိမ်စာ):", value=24, min_value=1, max_value=50)
@@ -240,23 +225,20 @@ if file:
             wins = 0
             total_tested = 0
             
-            # User ပေးလိုက်သော စတင်မည့် Draw မှ နောက်ကြောင်းပြန် ပတ်တိုက်စစ်ခြင်း
             for offset in range(backtest_rounds):
                 curr_draw = input_draw - offset
                 curr_year = input_year
                 
                 if curr_draw <= 0:
-                    # ၁ ကြိမ်မြောက်ထက် ကျော်လွန်သွားပါက ယခင်နှစ်အောက်ခြေသို့ Dynamic Offset ပြောင်းလဲခြင်း
                     curr_year -= 1
-                    curr_draw = 24 + curr_draw # ကလင်ဒါနှစ်ဝက် layout အလိုက် ညှိရန်
+                    curr_draw = 24 + curr_draw 
                     
                 if curr_year < 1996: break
                 
                 total_tested += 1
                 
-                # 🛠 True Time-Capsule Filter သုံး၍ အနောက်ကွယ်မှ ၇၀,၀၀၀ ကျော် လမ်းကြောင်း Virtual တွက်ချက်ခြင်း
                 round_results = analyze_virtual_matrix(df_calendar, curr_year, curr_draw, is_backtest=True)
-                generated_pairs = generate_27_pairs(round_results, "triple") # Standard VIP (>=3 matches)
+                generated_pairs = generate_27_pairs(round_results, "triple") 
                 actual_out = get_actual_result_string(df_calendar, curr_year, curr_draw)
                 
                 is_win = actual_out in generated_pairs
@@ -281,13 +263,12 @@ if file:
             st.metric("WIN RATE PERCENTAGE", f"{win_rate:.1f}%")
             
     else:
-        # --- Live Mode - Tab Separated View ---
         st.markdown(f"<h3 style='color:#D4AF37;'>📊 Virtual Matrix Dashboard (Year {input_year} | Draw {input_draw})</h3>", unsafe_allow_html=True)
         
         if st.button("🚀 Run Live Master Filter Analytics", use_container_width=True):
             with st.spinner("Processing 70,000+ Virtual Paths Syncing..."):
                 st.session_state.v12_results = analyze_virtual_matrix(df_calendar, input_year, input_draw, is_backtest=False)
-                st.success("✅ ၇၀,၀၀၀ ကျော် လမ်းကြောင်းစစ်စစ်များအားလုံး Memory ထဲတွင် Virtual ပေါင်းစပ်တွက်ချက်မှု အောင်မြင်ပါသည်။")
+                st.success("✅ ၂၀၂၆ အတွက် ၇၀,၀၀0 ကျော် လမ်းကြောင်းများအားလုံး Virtual ပေါင်းစပ်တွက်ချက်မှု အောင်မြင်ပါသည်။")
                 
         if "v12_results" in st.session_state and st.session_state.v12_results is not None:
             res = st.session_state.v12_results
