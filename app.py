@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
-import json
+import numpy as np
 import itertools
 
 # --- 1. Streamlit Page Configuration & Theme ---
-st.set_page_config(layout="wide", page_title="Golden Cross 3D Core v10.1", page_icon="🎯")
+st.set_page_config(layout="wide", page_title="Golden Cross v12.0 Virtual Core", page_icon="🎯")
 
 st.markdown("""
     <style>
@@ -20,42 +20,82 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Data Loading Engine ---
+# --- 2. Data Loading Engine (Reads Single Calendar Sheet) ---
 @st.cache_data
-def load_data(file_path):
+def load_calendar_data(file_path):
+    # Header မပါဘဲ ဒေတာသက်သက်ကို ဆွဲဖတ်ခြင်း
     df = pd.read_excel(file_path, header=None, engine='openpyxl')
-    return df.iloc[1:].reset_index(drop=True)
+    return df
 
-# --- 3. Core Engine with Strict Layout Boundary & Deduplication ---
-def analyze_matrix_core(df, target_r):
+# --- 3. Virtual Matrix Engine (Generates 70,000+ Paths inside Python Memory) ---
+def analyze_virtual_matrix(df, target_year, target_draw, is_backtest=False):
+    """
+    df: Calendar DataFrame
+    target_year: User ရိုက်ထည့်လိုက်သော မူလနှစ် (eg. 2025)
+    target_draw: User ရိုက်ထည့်လိုက်သော အကြိမ်ရေ / Round No (eg. 12)
+    """
+    # Excel Matrix Header Structure ပိုင်းခြားခြင်း
+    # Column 0 = Index/Sr, နောက်ပိုင်း Column များသည် 3 စီတွဲ (H, M, L)
+    years_row = df.iloc[0].astype(str).tolist()
+    
+    # ရွေးချယ်ထားသော Year ၏ Column Index ကို ရှာဖွေခြင်း
+    target_col_base = -1
+    for c_idx, y_val in enumerate(years_row):
+        if str(target_year) in y_val or y_val == str(target_year)[-2:]:
+            target_col_base = c_idx
+            break
+            
+    if target_col_base == -1:
+        # ရှာမတွေ့ပါက လက်ရှိ နောက်ဆုံးကော်လံကို Default ယူခြင်း
+        target_col_base = len(df.columns) - 4 
+
+    # Layout Offset အရ Target Row Index အား ကွက်တိရှာဖွေခြင်း
+    # (ဥပမာ- ထိပ်ဆုံး Row ၂ ခုသည် Header များ ဖြစ်ပြီး Draw 1 သည် Row index 2 မှ စတင်သည်)
+    target_row_idx = 1 + target_draw 
+    
     head_cols = [c for c in range(1, len(df.columns)) if (c - 1) % 3 == 0]
     mid_cols = [c + 1 for c in head_cols]
     tail_cols = [c + 2 for c in head_cols]
-    
     positions = [("Head", head_cols), ("Mid", mid_cols), ("Tail", tail_cols)]
-    raw_matches = {"Head": {}, "Mid": {}, "Tail": {}}
+    
+    raw_paths_compiled = {"Head": {}, "Mid": {}, "Tail": {}}
+    
+    # 🛠 [Time-Capsule & Deduplication Registry]
+    # Backtest စစ်လျှင် Target ထက် ကျော်လွန်သော အနာဂတ်ပွဲစဉ် လမ်းကြောင်းများကို ဒေတာပွားအဖြစ် ညှပ်ပိတ်ရန်
+    seen_composite_keys = set()
     
     max_rows = len(df)
-    max_y = len(head_cols) - 1
-    seen_signatures = set()
+    max_y_idx = len(head_cols) - 1
     
+    # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းများကို Python Memory ထဲတွင် Virtual ပေါင်းစပ်Loops ပတ်ခြင်း (y=0 မှ y=4 အထိ)
     for pos_name, cols in positions:
-        for y_idx in range(max_y):
-            for r in range(max_rows):
-                if r >= target_r: continue 
+        for y_idx in range(max_y_idx):
+            for r_idx in range(2, max_rows):
                 
-                for y_step in range(5):
+                # ⚠️ [Strict Time-Capsule Control]: Target Row ၏ အောက်ခြေရှိ အနာဂတ်ဒေတာများကို ပယ်ဖျက်ခြင်း
+                if is_backtest and r_idx >= target_row_idx:
+                    continue
+                elif not is_backtest and r_idx >= len(df) - 1: # Live Mode တွင် လက်ရှိပွဲအောက်ခြေကို ပိတ်ရန်
+                    continue
+
+                # Virtual Sheets (y0 မှ y4) ရွေ့လျားမှု Permutations များ ဖန်တီးခြင်း
+                for y_step in range(5): 
                     for r_step in range(-4, 5):
                         if y_step == 0 and r_step == 0: continue
                         
-                        digits, path_coords, valid = [], [], True
-                        neighborhood_dna = []
+                        digits, valid = [], True
+                        path_identifiers = []
                         
+                        # ၄ လုံးတွဲ Sequence Core Matrix Paths စစ်ဆေးခြင်း
                         for i in range(4):
-                            curr_r = r + i * r_step
+                            curr_r = r_idx + i * r_step
                             curr_y = y_idx + i * y_step
                             
-                            if curr_r < 0 or curr_r >= target_r or curr_y < 0 or curr_y >= max_y:
+                            if curr_r < 2 or curr_r >= max_rows or curr_y < 0 or curr_y >= max_y_idx:
+                                valid = False; break
+                                
+                            # Backtest Leakage ထပ်မံကာကွယ်ရန် Boundary စစ်ဆေးခြင်း
+                            if is_backtest and curr_r >= target_row_idx:
                                 valid = False; break
                                 
                             c_idx = cols[curr_y]
@@ -64,42 +104,46 @@ def analyze_matrix_core(df, target_r):
                                 valid = False; break
                             if val.endswith('.0'): val = val[:-2]
                             
-                            left_v = str(df.iloc[curr_r, c_idx-1]).strip() if c_idx-1 >= 0 else ""
-                            right_v = str(df.iloc[curr_r, c_idx+1]).strip() if c_idx+1 < len(df.columns) else ""
-                            neighborhood_dna.append((val, left_v, right_v))
-                            
                             digits.append(val)
-                            path_coords.append(f"{curr_r}_{c_idx}")
+                            
+                            # Auto-Generate Composite Keys (မူလနှစ် + Row No အား ကုဒ်ထဲတွင် တွက်ချက်ခြင်း)
+                            virtual_orig_year = years_row[c_idx] if years_row[c_idx] != "nan" else "Unknown"
+                            virtual_row_no = curr_r - 1
+                            path_identifiers.append(f"{virtual_orig_year}_{virtual_row_no}")
                             
                         if valid:
-                            dtup = tuple(digits)
-                            path_joined = "->".join(path_coords)
-                            dna_tup = (pos_name, tuple(neighborhood_dna))
+                            # 🛠 [Index-Based Deduplication] မူလနှစ်နှင့် Row တူနေပါက လမ်းကြောင်းတုအဖြစ် ပယ်ထုတ်ခြင်း
+                            composite_dna = f"{pos_name}_{y_step}_{r_step}_" + "-".join(path_identifiers)
+                            if composite_dna in seen_composite_keys:
+                                continue
+                            seen_composite_keys.add(composite_dna)
                             
-                            if dna_tup in seen_signatures: continue
-                            seen_signatures.add(dna_tup)
+                            digits_tup = tuple(digits)
+                            if digits_tup not in raw_paths_compiled[pos_name]:
+                                raw_paths_compiled[pos_name][digits_tup] = 0
+                            raw_paths_compiled[pos_name][digits_tup] += 1
                             
-                            if dtup not in raw_matches[pos_name]:
-                                raw_matches[pos_name][dtup] = set()
-                            raw_matches[pos_name][dtup].add(path_joined)
-                            
+    # --- Target Valuation Process ---
     results = {"Head": [], "Mid": [], "Tail": []}
-    target_y = len(head_cols) - 1
+    target_y_idx = head_cols.index(target_col_base) if target_col_base in head_cols else len(head_cols) - 1
     
     for pos_name, cols in positions:
-        prefixes = []
+        prefixes_found = []
+        
+        # Target prefix (၃ လုံးတွဲ) ရှာဖွေခြင်း
         for y_step in range(5):
             for r_step in range(-4, 5):
                 if y_step == 0 and r_step == 0: continue
-                start_r = target_r - 3 * r_step
-                start_y = target_y - 3 * y_step
-                if start_r < 0 or start_r >= target_r or start_y < 0: continue
+                
+                start_r = target_row_idx - 3 * r_step
+                start_y = target_y_idx - 3 * y_step
+                if start_r < 2 or start_r >= target_row_idx or start_y < 0: continue
                 
                 valid, digits = True, []
                 for i in range(3):
                     curr_r = start_r + i * r_step
                     curr_y = start_y + i * y_step
-                    if curr_r < 0 or curr_r >= target_r or curr_y < 0 or curr_y >= len(cols):
+                    if curr_r < 2 or curr_r >= target_row_idx or curr_y < 0 or curr_y >= len(cols):
                         valid = False; break
                     val = str(df.iloc[curr_r, cols[curr_y]]).strip()
                     if val.lower() in ['x', 'nan', '']: valid = False; break
@@ -107,20 +151,21 @@ def analyze_matrix_core(df, target_r):
                     digits.append(val)
                     
                 if valid:
-                    prefixes.append(tuple(digits))
+                    prefixes_found.append(tuple(digits))
                     
+        # ၇၀,၀၀၀ ကျော် လမ်းကြောင်းစစ်စစ်များမှ Vote အမှတ်အများဆုံး ဂဏန်းအား ရှာဖွေခြင်း
         for guess in range(10):
             guess_str = str(guess)
             match_count = 0
             
-            for pref in prefixes:
-                test_group = pref + (guess_str,)
-                if test_group in raw_matches[pos_name]:
-                    match_count += len(raw_matches[pos_name][test_group])
+            for pref in prefixes_found:
+                full_seq = pref + (guess_str,)
+                if full_seq in raw_paths_compiled[pos_name]:
+                    match_count += raw_paths_compiled[pos_name][full_seq]
                     
             if match_count >= 1:
                 results[pos_name].append({
-                    "digit": guess_str, 
+                    "digit": guess_str,
                     "match_count": match_count
                 })
                 
@@ -128,77 +173,91 @@ def analyze_matrix_core(df, target_r):
         
     return results
 
-# --- 4. Flexible Range Filter Engine (v10.1 No-Data Prevention Fix) ---
+# --- 4. Filtering & 27 Pairs Generator Engine ---
 def get_digits_by_filter(pos_results, mode_type, min_c=None, max_c=None):
     if not pos_results: return []
-    
-    # 1. Loneိုင် Consensus (သီးခြားလမ်းကြောင်းများ)
     if mode_type == "single":
         return [r["digit"] for r in pos_results if r["match_count"] == 1]
-    # 2. ပုံစံတူ ၂ ခုဝန်းကျင် (Flexible)
     elif mode_type == "double":
         return [r["digit"] for r in pos_results if r["match_count"] <= 2]
-    # 3. 🛠 [ပြင်ဆင်ချက်] ၃ ခုနှင့်အထက် ရှိသမျှအားလုံးကို VIP အဖြစ် သိမ်းယူခြင်း (No-Data ကာကွယ်ရန်)
     elif mode_type == "triple":
         return [r["digit"] for r in pos_results if r["match_count"] >= 3]
-    # 4. Custom Range
     elif mode_type == "custom" and min_c is not None and max_c is not None:
         return [r["digit"] for r in pos_results if min_c <= r["match_count"] <= max_c]
-        
     return []
 
 def generate_27_pairs(results, mode_type, min_c=None, max_c=None):
     h = get_digits_by_filter(results["Head"], mode_type, min_c, max_c)[:3]
     m = get_digits_by_filter(results["Mid"], mode_type, min_c, max_c)[:3]
     t = get_digits_by_filter(results["Tail"], mode_type, min_c, max_c)[:3]
-    
     combos = list(itertools.product(h, m, t))
     return ["".join(c) for c in combos]
 
-# --- 5. Actual Result Extract Engine for Backtest ---
-def get_actual_result_string(df, target_r):
+# --- 5. Real Result Extractor Engine ---
+def get_actual_result_string(df, target_year, target_draw):
     try:
-        last_col_idx = len(df.columns) - 1
-        h_val = str(df.iloc[target_r, last_col_idx - 2]).strip().replace('.0','')
-        m_val = str(df.iloc[target_r, last_col_idx - 1]).strip().replace('.0','')
-        t_val = str(df.iloc[target_r, last_col_idx]).strip().replace('.0','')
+        years_row = df.iloc[0].astype(str).tolist()
+        target_col_base = -1
+        for c_idx, y_val in enumerate(years_row):
+            if str(target_year) in y_val or y_val == str(target_year)[-2:]:
+                target_col_base = c_idx
+                break
+        if target_col_base == -1: return "N/A"
+        
+        target_row_idx = 1 + target_draw
+        h_val = str(df.iloc[target_row_idx, target_col_base]).strip().replace('.0','')
+        m_val = str(df.iloc[target_row_idx, target_col_base + 1]).strip().replace('.0','')
+        t_val = str(df.iloc[target_row_idx, target_col_base + 2]).strip().replace('.0','')
         return f"{h_val}{m_val}{t_val}"
     except:
-        return "Unknown"
+        return "N/A"
 
-# --- 6. Main Dashboard Layout ---
+# --- 6. User Interface Control Panel ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37;'>⚙️ CORE SYSTEM</h2>", unsafe_allow_html=True)
-    file = st.file_uploader("Upload Calendar Excel (.xlsx)", type=["xlsx"])
+    st.markdown("<h2 style='color:#D4AF37;'>⚙️ VIRTUAL MATRIX CORE v12.0</h2>", unsafe_allow_html=True)
+    file = st.file_uploader("Upload Calendar File (2025_3D.xlsx)", type=["xlsx"])
     st.markdown("---")
     
     if file:
-        st.markdown("### 🔍 TARGET SELECTOR")
-        mode = st.radio("Choose Working Mode:", ["Live Mode 🟢", "Batch Backtest Mode 🟡"])
+        st.markdown("### 🔍 MODE CONTROL")
+        app_mode = st.radio("Working Mode:", ["Live Mode 🟢", "Deep Batch Backtest 🟡"])
         
-        if mode == "Live Mode 🟢":
-            target_row = st.number_input("Target Row Number:", value=45, min_value=5)
-        else:
-            backtest_rounds = st.slider("Backtest Rounds Count (1 to 5):", min_value=1, max_value=5, value=3)
-            target_row = st.number_input("Starting Row for Backtest:", value=45, min_value=10)
+        st.markdown("### 🔢 INPUT BOXES")
+        # 🛠 Slider အစား ဖုန်းဖြင့် ရိုက်ထည့်ရလွယ်ကူသော Box များ ပြောင်းလဲခြင်း
+        input_year = st.number_input("Target Year (ခုနှစ်):", value=2025, min_value=1996, max_value=2030)
+        input_draw = st.number_input("Target Draw (အကြိမ်ရေ):", value=12, min_value=1, max_value=50)
+        
+        if app_mode == "Deep Batch Backtest 🟡":
+            backtest_rounds = st.number_input("Backtest Rounds Count (eg. 24 ကြိမ်စာ):", value=24, min_value=1, max_value=50)
 
 if file:
-    df = load_data(file)
+    df_calendar = load_calendar_data(file)
     
-    if "Batch Backtest Mode 🟡" in mode:
-        st.markdown("<h3 style='color:#D4AF37;'>📊 Automated Robot Batch Backtest Report</h3>", unsafe_allow_html=True)
+    if "Deep Batch Backtest 🟡" in app_mode:
+        st.markdown(f"<h3 style='color:#D4AF37;'>📊 Automated Batch Backtest Report (Last {backtest_rounds} Rounds)</h3>", unsafe_allow_html=True)
         
-        if st.button("🚀 Run Batch Backtest", use_container_width=True):
+        if st.button("🚀 Run Deep Backtest Engine", use_container_width=True):
             wins = 0
-            total_tested = backtest_rounds
+            total_tested = 0
             
+            # User ပေးလိုက်သော စတင်မည့် Draw မှ နောက်ကြောင်းပြန် ပတ်တိုက်စစ်ခြင်း
             for offset in range(backtest_rounds):
-                current_target_r = (target_row - 2) - offset
-                excel_row_lbl = current_target_r + 2
+                curr_draw = input_draw - offset
+                curr_year = input_year
                 
-                round_results = analyze_matrix_core(df, current_target_r)
-                generated_pairs = generate_27_pairs(round_results, "triple") # VIP Pairs (>=3 matches)
-                actual_out = get_actual_result_string(df, current_target_r)
+                if curr_draw <= 0:
+                    # ၁ ကြိမ်မြောက်ထက် ကျော်လွန်သွားပါက ယခင်နှစ်အောက်ခြေသို့ Dynamic Offset ပြောင်းလဲခြင်း
+                    curr_year -= 1
+                    curr_draw = 24 + curr_draw # ကလင်ဒါနှစ်ဝက် layout အလိုက် ညှိရန်
+                    
+                if curr_year < 1996: break
+                
+                total_tested += 1
+                
+                # 🛠 True Time-Capsule Filter သုံး၍ အနောက်ကွယ်မှ ၇၀,၀၀၀ ကျော် လမ်းကြောင်း Virtual တွက်ချက်ခြင်း
+                round_results = analyze_virtual_matrix(df_calendar, curr_year, curr_draw, is_backtest=True)
+                generated_pairs = generate_27_pairs(round_results, "triple") # Standard VIP (>=3 matches)
+                actual_out = get_actual_result_string(df_calendar, curr_year, curr_draw)
                 
                 is_win = actual_out in generated_pairs
                 if is_win: wins += 1
@@ -208,7 +267,7 @@ if file:
                 
                 st.markdown(f"""
                     <div class="report-card">
-                        <h4>🎯 [ROUND {offset+1}] -> Excel Row {excel_row_lbl}</h4>
+                        <h4>🎯 [ROUND {offset+1}] -> Year {curr_year} | Draw {curr_draw}</h4>
                         <p>✨ <b>Actual Result:</b> <span style="font-size:16px; color:#ffcc00;">{actual_out}</span></p>
                         <p>🔮 <b>AI VIP 27 Pairs:</b> <span style="color:#b0b0b0;">{pairs_display}</span></p>
                         <p>{status_lbl}</p>
@@ -217,21 +276,21 @@ if file:
                 
             win_rate = (wins / total_tested) * 100 if total_tested > 0 else 0
             st.markdown("---")
-            st.subheader("📈 FINAL EVALUATION SUMMARY")
+            st.subheader("📈 FINAL DEEP EVALUATION SUMMARY")
             st.metric("TOTAL WINS", f"{wins} / {total_tested} Rounds")
             st.metric("WIN RATE PERCENTAGE", f"{win_rate:.1f}%")
             
     else:
-        st.markdown("<h3 style='color:#D4AF37;'>📊 Matrix Group Splitter Dashboard</h3>", unsafe_allow_html=True)
+        # --- Live Mode - Tab Separated View ---
+        st.markdown(f"<h3 style='color:#D4AF37;'>📊 Virtual Matrix Dashboard (Year {input_year} | Draw {input_draw})</h3>", unsafe_allow_html=True)
         
-        if st.button("🚀 Run Master Filter Analytics", use_container_width=True):
-            with st.spinner("Calculating Pure Logic..."):
-                target_r_idx = target_row - 2
-                st.session_state.live_results = analyze_matrix_core(df, target_r_idx)
-                st.success("✅ တွက်ချက်မှု အောင်မြင်ပါသည်။")
+        if st.button("🚀 Run Live Master Filter Analytics", use_container_width=True):
+            with st.spinner("Processing 70,000+ Virtual Paths Syncing..."):
+                st.session_state.v12_results = analyze_virtual_matrix(df_calendar, input_year, input_draw, is_backtest=False)
+                st.success("✅ ၇၀,၀၀၀ ကျော် လမ်းကြောင်းစစ်စစ်များအားလုံး Memory ထဲတွင် Virtual ပေါင်းစပ်တွက်ချက်မှု အောင်မြင်ပါသည်။")
                 
-        if "live_results" in st.session_state and st.session_state.live_results is not None:
-            res = st.session_state.live_results
+        if "v12_results" in st.session_state and st.session_state.v12_results is not None:
+            res = st.session_state.v12_results
             
             t1, t2, t3, t4 = st.tabs([
                 "🎯 LONE Bိုင် CONSENSUS", 
@@ -246,7 +305,6 @@ if file:
                 s_m = get_digits_by_filter(res["Mid"], "single")
                 s_t = get_digits_by_filter(res["Tail"], "single")
                 
-                # အမှတ်အများဆုံးထောက်ခံချက်ရသည့် ဂဏန်းများကို ဦးစားပေးပြသရန်
                 st.write(f"**ထိပ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_h) if s_h else 'မရှိပါ'}")
                 st.write(f"**လယ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_m) if s_m else 'မရှိပါ'}")
                 st.write(f"**ပိတ် လုံးဘိုင်ဂဏန်းများ:** {', '.join(s_t) if s_t else 'မရှိပါ'}")
@@ -257,16 +315,16 @@ if file:
                 st.text_area("2-Match Pairs Text:", value=" . ".join(pairs_2) if pairs_2 else "No Data", height=100)
                 
             with t3:
-                st.markdown("<h4>🥇 ပုံစံတူ ၃ ခုနှင့်အထက် ရှိသမျှ VIP အတွဲများ</h4>", unsafe_allow_html=True)
+                st.markdown("<h4>🥇 ပုံစံတူ ၃ ခုနှင့်အထက် ရှိသမျှ True VIP အတွဲများ</h4>", unsafe_allow_html=True)
                 pairs_3 = generate_27_pairs(res, "triple")
                 st.text_area("VIP Pairs Text:", value=" . ".join(pairs_3) if pairs_3 else "No Data", height=100)
                 
             with t4:
                 st.markdown("<h4>⚙️ Custom Range အုပ်စု အရေအတွက် ကန့်သတ်ခြင်း</h4>", unsafe_allow_html=True)
                 c_min = st.number_input("Minimum Match Count:", value=4, min_value=1)
-                c_max = st.number_input("Maximum Match Count:", value=6, min_value=1)
+                c_max = st.number_input("Maximum Match Count:", value=10, min_value=1)
                 
                 pairs_c = generate_27_pairs(res, "custom", c_min, c_max)
                 st.text_area(f"Custom Pairs ({c_min} to {c_max} Matches):", value=" . ".join(pairs_c) if pairs_c else "No Data", height=100)
 else:
-    st.info("💡 ဆက်လက်လုပ်ဆောင်ရန်အတွက် ဘယ်ဘက် Sidebar Panel တွင် Excel (.xlsx) ဒေတာဖိုင်ကို တင်ပေးပါ Bro!")
+    st.info("💡 ဆက်လက်လုပ်ဆောင်ရန်အတွက် ဘယ်ဘက် Sidebar Panel တွင် '2025_3D.xlsx' (Calendar) ဖိုင်ကို တင်ပေးပါ Bro!")
